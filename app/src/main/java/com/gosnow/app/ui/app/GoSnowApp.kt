@@ -11,9 +11,13 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.NavHost
@@ -25,12 +29,58 @@ import com.gosnow.app.ui.feed.FeedScreen
 import com.gosnow.app.ui.home.HomeScreen
 import com.gosnow.app.ui.lostfound.LostAndFoundScreen
 import com.gosnow.app.ui.profile.ProfileScreen
+import com.gosnow.app.ui.login.LoginScreen
+import com.gosnow.app.ui.login.LoginViewModel
 
+private const val LOGIN_ROUTE = "login"
+private const val MAIN_ROUTE = "main"
 const val PROFILE_ROUTE = "profile"
 const val LOST_AND_FOUND_ROUTE = "lost_and_found"
 
 @Composable
 fun GoSnowApp() {
+    val authNavController = rememberNavController()
+    val context = LocalContext.current
+    val loginViewModel: LoginViewModel = viewModel(factory = LoginViewModel.provideFactory(context))
+    val uiState by loginViewModel.uiState.collectAsState()
+
+    NavHost(
+        navController = authNavController,
+        startDestination = if (uiState.isLoggedIn) MAIN_ROUTE else LOGIN_ROUTE
+    ) {
+        composable(LOGIN_ROUTE) {
+            LoginScreen(
+                uiState = uiState,
+                onEmailChange = loginViewModel::onEmailChange,
+                onPasswordChange = loginViewModel::onPasswordChange,
+                onLoginClick = loginViewModel::login
+            )
+        }
+        composable(MAIN_ROUTE) {
+            GoSnowMainApp(
+                onLogout = {
+                    loginViewModel.logout()
+                    authNavController.navigate(LOGIN_ROUTE) {
+                        popUpTo(MAIN_ROUTE) { inclusive = true }
+                    }
+                }
+            )
+        }
+    }
+
+    LaunchedEffect(uiState.isLoggedIn) {
+        if (uiState.isLoggedIn) {
+            authNavController.navigate(MAIN_ROUTE) {
+                popUpTo(LOGIN_ROUTE) { inclusive = true }
+            }
+        }
+    }
+}
+
+@Composable
+fun GoSnowMainApp(
+    onLogout: () -> Unit
+) {
     val navController = rememberNavController()
 
     val items = listOf(
@@ -98,7 +148,7 @@ fun GoSnowApp() {
                     }
                 )
             }
-            composable(PROFILE_ROUTE) { ProfileScreen() }
+            composable(PROFILE_ROUTE) { ProfileScreen(onLogout = onLogout) }
             composable(LOST_AND_FOUND_ROUTE) { LostAndFoundScreen() }
         }
     }
