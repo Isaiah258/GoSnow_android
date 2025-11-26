@@ -1,7 +1,9 @@
 package com.gosnow.app.ui.login
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +18,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -28,37 +35,39 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-// ✅ 用 material icons，而不是 material3.icons
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-// ✅ 为 var xxx by remember { mutableStateOf() } 提供委托支持
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
-
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.gosnow.app.BuildConfig
+import com.gosnow.app.R
 
 private val iOSBlue = Color(0xFF0A84FF)
 private val iOSBackground = Color(0xFFF2F3F5)
 private val iOSMuted = Color(0xFF6E6E73)
 
 @Composable
-fun LoginLandingScreen(
+fun WelcomeAuthIntroScreen(
     isCheckingSession: Boolean,
-    onStartPhoneLogin: () -> Unit
+    onStartPhoneLogin: () -> Unit,
+    onTermsClick: () -> Unit
 ) {
     var hasInit by remember { mutableStateOf(false) }
 
@@ -117,21 +126,22 @@ fun LoginLandingScreen(
                             .border(1.dp, Color(0xFFE3E5E8), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "GS",
-                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                            color = iOSBlue
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                            contentDescription = "GoSnow",
+                            modifier = Modifier.size(48.dp),
+                            colorFilter = ColorFilter.tint(iOSBlue)
                         )
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "GoSnow 登陆体验",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        text = "欢迎来到 GoSnow",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = Color(0xFF1C1C1E)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "与 iOS 保持一致的视觉节奏与色彩",
+                        text = "与 iOS 版本一致的认证入口，保持品牌色与体验节奏。",
                         style = MaterialTheme.typography.bodyMedium,
                         color = iOSMuted,
                         textAlign = TextAlign.Center
@@ -141,84 +151,69 @@ fun LoginLandingScreen(
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = "手机号一键开始",
+                    text = "使用手机号以继续",
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                     color = Color(0xFF111114)
                 )
                 Text(
-                    text = "与你在 iOS 上的登录文案保持一致，轻量且清晰",
+                    text = "与 iOS 登录入口保持同样的结构和说明，让首次注册和再次登录都一目了然。",
                     style = MaterialTheme.typography.bodyLarge,
                     color = iOSMuted
                 )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    IntroChecklistItem(text = "手机号登录/注册一体化")
+                    IntroChecklistItem(text = "验证码登录确保账号安全")
+                    IntroChecklistItem(text = "Memfire Supabase 同步会话")
+                }
+            }
+
+            Button(
+                onClick = onStartPhoneLogin,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = iOSBlue)
+            ) {
+                Text(text = "使用手机号以继续", color = Color.White)
             }
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFE5F0FF)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "☎", fontWeight = FontWeight.SemiBold, color = iOSBlue)
-                        }
-                        Column {
-                            Text(
-                                text = "短信验证登录",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = Color(0xFF1C1C1E)
-                            )
-                            Text(
-                                text = "同步 iOS 布局与间距，专注清晰的分层",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = iOSMuted
-                            )
-                        }
-                    }
-
-                    Button(
-                        onClick = onStartPhoneLogin,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = iOSBlue)
-                    ) {
-                        Text(text = "使用手机号登录", color = Color.White)
-                    }
+                    Text(
+                        text = "登录即代表你同意我们的《用户协议》和《隐私政策》",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = iOSMuted
+                    )
+                    Text(
+                        text = "查看条款",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = iOSBlue,
+                        modifier = Modifier.clickable { onTermsClick() }
+                    )
                 }
             }
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = "Memfire Supabase",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = Color(0xFF1C1C1E)
-                )
-                Text(
-                    text = "与 iOS 版本保持一致的服务信息呈现",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = iOSMuted
-                )
-            }
         }
+    }
+}
+
+@Composable
+private fun IntroChecklistItem(text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(
+            imageVector = Icons.Filled.CheckCircle,
+            contentDescription = null,
+            tint = iOSBlue
+        )
+        Text(text = text, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF1C1C1E))
     }
 }
 
@@ -229,7 +224,8 @@ fun PhoneLoginScreen(
     onVerificationCodeChange: (String) -> Unit,
     onSendCode: () -> Unit,
     onLoginClick: () -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onTermsClick: () -> Unit
 ) {
     if (uiState.isCheckingSession) {
         Column(
@@ -390,13 +386,37 @@ fun PhoneLoginScreen(
                 )
             }
 
-            Text(
-                text = "登录即代表你同意《用户协议》和《隐私政策》",
-                style = MaterialTheme.typography.bodySmall,
-                color = iOSMuted,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+            val termsText = remember { termsAnnotatedString() }
+            ClickableText(
+                text = termsText,
+                style = MaterialTheme.typography.bodySmall.copy(color = iOSMuted),
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { offset ->
+                    termsText.getStringAnnotations(tag = TERMS_TAG, start = offset, end = offset)
+                        .firstOrNull()?.let { onTermsClick() }
+                }
             )
         }
+    }
+}
+
+private const val TERMS_TAG = "terms"
+
+private fun termsAnnotatedString(): AnnotatedString {
+    return buildAnnotatedString {
+        append("登录即代表你同意")
+        append(" “")
+        pushStringAnnotation(tag = TERMS_TAG, annotation = "terms")
+        withStyle(SpanStyle(color = iOSBlue, fontWeight = FontWeight.SemiBold)) {
+            append("用户协议")
+        }
+        pop()
+        append("” 和 “")
+        pushStringAnnotation(tag = TERMS_TAG, annotation = "terms")
+        withStyle(SpanStyle(color = iOSBlue, fontWeight = FontWeight.SemiBold)) {
+            append("隐私政策")
+        }
+        pop()
+        append("”。")
     }
 }

@@ -27,14 +27,16 @@ import androidx.navigation.compose.rememberNavController
 import com.gosnow.app.ui.discover.DiscoverScreen
 import com.gosnow.app.ui.feed.FeedScreen
 import com.gosnow.app.ui.home.HomeScreen
-import com.gosnow.app.ui.lostfound.LostAndFoundScreen
-import com.gosnow.app.ui.profile.ProfileScreen
-import com.gosnow.app.ui.login.LoginLandingScreen
 import com.gosnow.app.ui.login.LoginViewModel
 import com.gosnow.app.ui.login.PhoneLoginScreen
+import com.gosnow.app.ui.login.TermsScreen
+import com.gosnow.app.ui.login.WelcomeAuthIntroScreen
+import com.gosnow.app.ui.lostfound.LostAndFoundScreen
+import com.gosnow.app.ui.profile.ProfileScreen
 
-private const val LOGIN_LANDING_ROUTE = "login_landing"
+private const val WELCOME_AUTH_ROUTE = "welcome_auth"
 private const val PHONE_LOGIN_ROUTE = "phone_login"
+private const val TERMS_ROUTE = "terms"
 private const val MAIN_ROUTE = "main"
 const val PROFILE_ROUTE = "profile"
 const val LOST_AND_FOUND_ROUTE = "lost_and_found"
@@ -48,12 +50,13 @@ fun GoSnowApp() {
 
     NavHost(
         navController = authNavController,
-        startDestination = if (uiState.isLoggedIn) MAIN_ROUTE else LOGIN_LANDING_ROUTE
+        startDestination = if (uiState.isLoggedIn) MAIN_ROUTE else WELCOME_AUTH_ROUTE
     ) {
-        composable(LOGIN_LANDING_ROUTE) {
-            LoginLandingScreen(
+        composable(WELCOME_AUTH_ROUTE) {
+            WelcomeAuthIntroScreen(
                 isCheckingSession = uiState.isCheckingSession,
-                onStartPhoneLogin = { authNavController.navigate(PHONE_LOGIN_ROUTE) }
+                onStartPhoneLogin = { authNavController.navigate(PHONE_LOGIN_ROUTE) },
+                onTermsClick = { authNavController.navigate(TERMS_ROUTE) }
             )
         }
         composable(PHONE_LOGIN_ROUTE) {
@@ -63,14 +66,18 @@ fun GoSnowApp() {
                 onVerificationCodeChange = loginViewModel::onVerificationCodeChange,
                 onSendCode = loginViewModel::sendVerificationCode,
                 onLoginClick = loginViewModel::verifyCodeAndLogin,
-                onBackClick = { authNavController.popBackStack() }
+                onBackClick = { authNavController.popBackStack() },
+                onTermsClick = { authNavController.navigate(TERMS_ROUTE) }
             )
+        }
+        composable(TERMS_ROUTE) {
+            TermsScreen(onBackClick = { authNavController.popBackStack() })
         }
         composable(MAIN_ROUTE) {
             GoSnowMainApp(
                 onLogout = {
                     loginViewModel.logout()
-                    authNavController.navigate(LOGIN_LANDING_ROUTE) {
+                    authNavController.navigate(WELCOME_AUTH_ROUTE) {
                         popUpTo(MAIN_ROUTE) { inclusive = true }
                     }
                 }
@@ -81,7 +88,7 @@ fun GoSnowApp() {
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) {
             authNavController.navigate(MAIN_ROUTE) {
-                popUpTo(LOGIN_LANDING_ROUTE) { inclusive = true }
+                popUpTo(WELCOME_AUTH_ROUTE) { inclusive = true }
             }
         }
     }
