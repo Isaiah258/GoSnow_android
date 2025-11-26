@@ -1,6 +1,4 @@
-package com.gosnow.app.ui.home
-
-
+package com.gosnow.app.ui.lostfound
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,13 +9,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 @Composable
-fun HomeScreen() {
+fun LostAndFoundScreen(modifier: Modifier = Modifier) {
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Home — 上雪")
+        Text(text = "失物招领列表占位 — TODO: 对接 iOS 发现页入口")
     }
 }
-

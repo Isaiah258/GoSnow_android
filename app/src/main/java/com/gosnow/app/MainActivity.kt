@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.gosnow.app.ui.ShangXueApp
+import com.gosnow.app.ui.app.GoSnowApp
 import com.gosnow.app.ui.theme.GosnowTheme
 
 class MainActivity : ComponentActivity() {
@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             GosnowTheme {
-                ShangXueApp()
+                GoSnowApp()
             }
         }
     }
