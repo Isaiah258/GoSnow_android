@@ -48,6 +48,13 @@ fun TermsScreen(onBackClick: () -> Unit) {
                 .verticalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Text(
+                text = "请仔细阅读以下内容，了解你在使用 GoSnow 时的权利与义务。",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
+            )
+
             termsSections.forEach { section ->
                 TermsCard(section = section)
             }
@@ -68,7 +75,7 @@ private fun TermsCard(section: TermsSection) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = CardDefaults.shape,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -76,7 +83,8 @@ private fun TermsCard(section: TermsSection) {
         ) {
             Text(
                 text = section.title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
             )
             section.paragraphs.forEach { paragraph ->
                 Text(
