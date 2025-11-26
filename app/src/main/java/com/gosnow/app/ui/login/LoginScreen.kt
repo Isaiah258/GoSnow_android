@@ -20,20 +20,28 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.icons.Icons
-import androidx.compose.material3.icons.filled.ArrowBack
+// ✅ 用 material icons，而不是 material3.icons
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+// ✅ 为 var xxx by remember { mutableStateOf() } 提供委托支持
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardOptions
+// ✅ 用 foundation.text 里的 KeyboardOptions
+import androidx.compose.foundation.text.KeyboardOptions
+// ✅ KeyboardType 仍然用 ui.text.input 里的
 import androidx.compose.ui.text.input.KeyboardType
+
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+
 
 @Composable
 fun LoginLandingScreen(

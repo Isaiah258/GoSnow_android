@@ -44,6 +44,10 @@ android {
     buildFeatures {
         compose = true
     }
+
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 val localProperties = Properties().apply {
