@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 fun HomeScreen(
     onProfileClick: () -> Unit,
     onNavigateToDiscoverLost: () -> Unit,
+    onNavigateToRecord: () -> Unit,   // ✅ 新增：跳转到滑行记录页
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -53,24 +54,38 @@ fun HomeScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // ✅ 第一块卡片：滑雪数据总览 -> 点击进入滑行记录页
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToRecord() }   // 点击整卡跳转
+                ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "滑雪数据总览占位",
+                            text = "滑雪数据总览",
                             style = MaterialTheme.typography.titleMedium
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "TODO: 根据 iOS 首页展示真实的滑雪统计与概览",
-                            style = MaterialTheme.typography.bodyMedium
+                            text = "查看本次滑行的时间、里程和最高速度。",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "查看详情",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.align(Alignment.End)
                         )
                     }
                 }
             }
 
+            // 原来的「常用功能入口」卡片（保留失物招领）
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(
@@ -97,7 +112,8 @@ fun HomeScreen(
                                 .clickable { onNavigateToDiscoverLost() }
                                 .padding(top = 4.dp)
                                 .align(Alignment.End),
-                            style = MaterialTheme.typography.labelLarge
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }

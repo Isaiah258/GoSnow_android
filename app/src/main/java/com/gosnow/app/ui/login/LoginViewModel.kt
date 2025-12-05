@@ -86,8 +86,13 @@ class LoginViewModel(
             } catch (e: AuthApiService.AuthApiException) {
                 _uiState.update { it.copy(errorMessage = e.message) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "验证码发送失败，请稍后重试") }
-            } finally {
+                _uiState.update {
+                    it.copy(
+                        errorMessage = e.message ?: "验证码发送失败，请稍后重试"
+                    )
+                }
+            }
+            finally {
                 _uiState.update { it.copy(isSendingCode = false) }
             }
         }
