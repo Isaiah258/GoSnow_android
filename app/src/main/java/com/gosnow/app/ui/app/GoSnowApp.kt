@@ -2,15 +2,7 @@ package com.gosnow.app.ui.app
 
 import android.content.Context
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Public
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -19,7 +11,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination
@@ -30,6 +21,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.gosnow.app.ui.discover.DiscoverScreen
 import com.gosnow.app.ui.feed.FeedScreen
+import com.gosnow.app.ui.home.BottomNavItem
+import com.gosnow.app.ui.home.BottomNavigationBar
 import com.gosnow.app.ui.home.HomeScreen
 import com.gosnow.app.ui.login.LoginViewModel
 import com.gosnow.app.ui.login.PhoneLoginScreen
@@ -135,60 +128,62 @@ fun GoSnowMainApp(
     val navController = rememberNavController()
 
     val items = listOf(
-        BottomNavItem.Home,
-        BottomNavItem.Feed,
+        BottomNavItem.Record,
+        BottomNavItem.Community,
         BottomNavItem.Discover
     )
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val shouldShowBottomBar = currentDestination?.route != RECORD_ROUTE
+    val currentRoute = currentDestination?.route
+    val shouldShowBottomBar = currentRoute != RECORD_ROUTE && currentRoute != BottomNavItem.Record.route
 
     Scaffold(
         bottomBar = {
             if (shouldShowBottomBar) {
-                NavigationBar {
-                    items.forEach { item ->
+                BottomNavigationBar(
+                    items = items,
+                    currentRoute = currentRoute.orEmpty(),
+                    onItemSelected = { item ->
                         val selected = currentDestination.isRouteInHierarchy(item.route)
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                if (!selected) {
-                                    navController.navigate(item.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+                        if (!selected) {
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
                                 }
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.label
-                                )
-                            },
-                            label = { Text(text = item.label) }
-                        )
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
                     }
-                }
+                )
             }
         }
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = BottomNavItem.Home.route,
+            startDestination = BottomNavItem.Record.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(BottomNavItem.Home.route) {
+            composable(BottomNavItem.Record.route) {
                 HomeScreen(
-                    onProfileClick = { navController.navigate(PROFILE_ROUTE) },
-                    onNavigateToDiscoverLost = { navController.navigate(LOST_AND_FOUND_ROUTE) },
-                    onNavigateToRecord = { navController.navigate(RECORD_ROUTE) }
+                    onStartRecording = { navController.navigate(RECORD_ROUTE) },
+                    onFeatureClick = { /* TODO: add navigation for features */ },
+                    onBottomNavSelected = { item ->
+                        if (item.route != BottomNavItem.Record.route) {
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    },
+                    currentRoute = BottomNavItem.Record.route
                 )
             }
-            composable(BottomNavItem.Feed.route) {
+            composable(BottomNavItem.Community.route) {
                 FeedScreen(
                     onCreatePostClick = {
                         // TODO: 入雪圈发帖导航逻辑
@@ -209,17 +204,6 @@ fun GoSnowMainApp(
         }
     }
 }
-
-sealed class BottomNavItem(
-    val route: String,
-    val label: String,
-    val icon: ImageVector
-) {
-    data object Home : BottomNavItem("home", "首页", Icons.Filled.Home)
-    data object Feed : BottomNavItem("feed", "雪圈", Icons.Filled.Public)
-    data object Discover : BottomNavItem("discover", "发现", Icons.Filled.Explore)
-}
-
 private fun NavDestination?.isRouteInHierarchy(route: String): Boolean {
     return this?.hierarchy?.any { it.route == route } == true
 }
