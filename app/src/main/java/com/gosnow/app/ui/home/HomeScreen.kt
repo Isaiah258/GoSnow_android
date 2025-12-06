@@ -19,13 +19,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Flare
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,8 +38,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -54,6 +56,9 @@ import com.gosnow.app.ui.theme.GosnowTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+/**
+ * UI state for the Home screen.
+ */
 data class HomeUiState(
     val todayDistanceKm: Double = 0.0,
     val totalDistanceKm: Double = 0.0,
@@ -61,6 +66,9 @@ data class HomeUiState(
     val daysOnSnow: Int = 0
 )
 
+/**
+ * Demo view model that exposes static data for the Home screen.
+ */
 class HomeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(
         HomeUiState(
@@ -116,107 +124,145 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
         ) {
-            HomeHeader()
-            Spacer(modifier = Modifier.height(16.dp))
-            TodayCard(uiState)
-            Spacer(modifier = Modifier.height(16.dp))
+            HeaderSection()
+            Spacer(modifier = Modifier.height(20.dp))
+            TodaySummaryCard(uiState)
+            Spacer(modifier = Modifier.height(20.dp))
             LifetimeStatsSection(uiState)
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
             FeaturedSection(onFeatureClick = onFeatureClick)
             Spacer(modifier = Modifier.height(32.dp))
             PrimaryActionButton(onStartRecording = onStartRecording)
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-private fun HomeHeader() {
+private fun HeaderSection() {
     Surface(
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        shadowElevation = 2.dp,
-        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-        modifier = Modifier.fillMaxWidth()
+        tonalElevation = 4.dp,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
+        color = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "25–26 雪季",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "25–26 雪季",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "准备好开冲了吗？",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "G",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
+                    Icon(
+                        imageVector = Icons.Filled.Flare,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+            Text(
+                text = "雪场天气晴朗，滑雪的绝佳时刻！",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun TodaySummaryCard(uiState: HomeUiState) {
+    ElevatedCard(
+        modifier = Modifier
+            .padding(horizontal = 20.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "今日滑行",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = "Today",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    text = String.format("%.1f", uiState.todayDistanceKm),
+                    style = MaterialTheme.typography.displaySmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 52.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "雪场天气晴朗，适合开启今日滑行",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = "km",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                 )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                MetricChip(label = "状态", value = "呼吸顺畅 · 状态佳")
+                MetricChip(label = "雪况", value = "粉雪 · 轻松滑行")
             }
         }
     }
 }
 
 @Composable
-private fun TodayCard(uiState: HomeUiState) {
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        shape = RoundedCornerShape(20.dp)
+private fun MetricChip(label: String, value: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.06f),
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        shape = RoundedCornerShape(50)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
-                text = "今日滑行",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold
             )
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = String.format("%.1f", uiState.todayDistanceKm),
-                    style = MaterialTheme.typography.displaySmall.copy(fontSize = 48.sp, fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "km",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
@@ -227,23 +273,30 @@ private fun LifetimeStatsSection(uiState: HomeUiState) {
         modifier = Modifier.padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "生涯数据",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                StatCard(
+                    title = "总里程",
+                    value = String.format("%.1f km", uiState.totalDistanceKm),
+                    modifier = Modifier.weight(1f)
+                )
+                StatCard(
+                    title = "总时长",
+                    value = String.format("%.1f 小时", uiState.totalDurationHours),
+                    modifier = Modifier.weight(1f)
+                )
+            }
             StatCard(
-                title = "总里程",
-                value = String.format("%.1f km", uiState.totalDistanceKm),
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                title = "总时长",
-                value = String.format("%.1f 小时", uiState.totalDurationHours),
-                modifier = Modifier.weight(1f)
+                title = "在雪天数",
+                value = "${uiState.daysOnSnow} 天",
+                modifier = Modifier.fillMaxWidth()
             )
         }
-        StatCard(
-            title = "在雪天数",
-            value = "${uiState.daysOnSnow} 天",
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 }
 
@@ -251,9 +304,9 @@ private fun LifetimeStatsSection(uiState: HomeUiState) {
 private fun StatCard(title: String, value: String, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(16.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -293,8 +346,8 @@ private fun FeaturedSection(onFeatureClick: (String) -> Unit) {
 }
 
 private val featureItems = listOf(
-    FeatureTileData(title = "滑行数据", subtitle = "周/月/雪季 趋势图表", icon = Icons.Filled.GraphicEq),
-    FeatureTileData(title = "雪况投票", subtitle = "一起评价今日雪况", icon = Icons.Filled.PlayCircle),
+    FeatureTileData(title = "滑行数据", subtitle = "周/月/雪季 趋势图表", icon = Icons.Filled.BarChart),
+    FeatureTileData(title = "雪况投票", subtitle = "一起评价今日雪况", icon = Icons.Filled.Celebration),
     FeatureTileData(title = "更多功能", subtitle = "与朋友一起玩雪", icon = Icons.Filled.Explore)
 )
 
@@ -302,7 +355,10 @@ private val featureItems = listOf(
 private fun FeatureTile(item: FeatureTileData, onClick: () -> Unit) {
     ElevatedCard(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         modifier = Modifier.width(220.dp)
     ) {
         Row(
@@ -396,7 +452,7 @@ fun BottomNavigationBar(
 
 @Preview(showBackground = true)
 @Composable
-fun HomeScreenRoot() {
+fun HomeScreenPreview() {
     GosnowTheme {
         HomeScreen(
             onStartRecording = {},
