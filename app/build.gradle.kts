@@ -80,6 +80,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.kotlinx.coroutines.android)
+    implementation("io.coil-kt:coil-compose:2.6.0")
     implementation(libs.okhttp)
     implementation(libs.androidx.datastore.preferences)
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
