@@ -217,7 +217,7 @@ private fun StatCard(
 ) {
     Column(
         modifier = Modifier
-            .weight(1f)
+            //.weight(1f)
             .height(88.dp)
             .background(color = Color(0xFF0F0F0F), shape = RoundedCornerShape(24.dp))
             .padding(horizontal = 16.dp, vertical = 12.dp),

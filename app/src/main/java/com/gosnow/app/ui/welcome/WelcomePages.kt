@@ -276,7 +276,7 @@ private fun FeatureRow(
 // -------- 整个 Welcome Flow 容器（3 页，底部指示点 + 按钮） --------
 
 @Composable
-fun WelcomeFlowScreen(
+fun WelcomeFlowScreenWithIcons(
     onFinished: () -> Unit
 ) {
     var page by rememberSaveable { mutableIntStateOf(0) }
