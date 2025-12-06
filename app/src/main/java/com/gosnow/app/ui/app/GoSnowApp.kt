@@ -19,7 +19,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.gosnow.app.ui.discover.CarpoolPublishScreen
+import com.gosnow.app.ui.discover.CarpoolScreen
 import com.gosnow.app.ui.discover.DiscoverScreen
+import com.gosnow.app.ui.discover.LostAndFoundPublishScreen
+import com.gosnow.app.ui.discover.LostAndFoundScreen
+import com.gosnow.app.ui.discover.MyCarpoolScreen
+import com.gosnow.app.ui.discover.MyRoommateScreen
+import com.gosnow.app.ui.discover.RoommatePublishScreen
+import com.gosnow.app.ui.discover.RoommateScreen
 import com.gosnow.app.ui.feed.FeedScreen
 import com.gosnow.app.ui.home.BottomNavItem
 import com.gosnow.app.ui.home.BottomNavigationBar
@@ -28,7 +36,6 @@ import com.gosnow.app.ui.login.LoginViewModel
 import com.gosnow.app.ui.login.PhoneLoginScreen
 import com.gosnow.app.ui.login.TermsScreen
 import com.gosnow.app.ui.login.WelcomeAuthIntroScreen
-import com.gosnow.app.ui.lostfound.LostAndFoundScreen
 import com.gosnow.app.ui.profile.ProfileScreen
 import com.gosnow.app.ui.record.RecordRoute
 import com.gosnow.app.ui.welcome.WelcomeFlowScreen
@@ -39,7 +46,18 @@ private const val TERMS_ROUTE = "terms"
 private const val MAIN_ROUTE = "main"
 
 const val PROFILE_ROUTE = "profile"
+
 const val LOST_AND_FOUND_ROUTE = "lost_and_found"
+const val LOST_AND_FOUND_PUBLISH_ROUTE = "lost_and_found_publish"
+
+const val CARPOOL_ROUTE = "carpool"
+const val CARPOOL_PUBLISH_ROUTE = "carpool_publish"
+const val MY_CARPOOL_ROUTE = "my_carpool"
+
+const val ROOMMATE_ROUTE = "roommate"
+const val ROOMMATE_PUBLISH_ROUTE = "roommate_publish"
+const val MY_ROOMMATE_ROUTE = "my_roommate"
+
 const val RECORD_ROUTE = "record"
 const val WELCOME_FLOW_ROUTE = "welcome_flow"
 
@@ -138,7 +156,6 @@ fun GoSnowMainApp(
     val currentRoute = currentDestination?.route
     val shouldShowBottomBar = currentRoute != RECORD_ROUTE
 
-
     Scaffold(
         bottomBar = {
             if (shouldShowBottomBar) {
@@ -166,10 +183,11 @@ fun GoSnowMainApp(
             startDestination = BottomNavItem.Record.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+            // 记录首页
             composable(BottomNavItem.Record.route) {
                 HomeScreen(
                     onStartRecording = { navController.navigate(RECORD_ROUTE) },
-                    onFeatureClick = { /* TODO: add navigation for features */ },
+                    onFeatureClick = { /* 记录页里的功能入口，后面再补 */ },
                     onBottomNavSelected = { item ->
                         if (item.route != BottomNavItem.Record.route) {
                             navController.navigate(item.route) {
@@ -184,31 +202,100 @@ fun GoSnowMainApp(
                     currentRoute = BottomNavItem.Record.route
                 )
             }
+
+            // 雪圈
             composable(BottomNavItem.Community.route) {
                 FeedScreen(
                     onCreatePostClick = {
-                        // TODO: 入雪圈发帖导航逻辑
-                    }
-                )
-            }
-            composable(BottomNavItem.Discover.route) {
-                DiscoverScreen(
-                    onLostAndFoundClick = { navController.navigate(LOST_AND_FOUND_ROUTE) },
-                    onCarpoolClick = {
-                        // TODO: 导航到「顺风车」页面，例如 navController.navigate(CARPOOL_ROUTE)
-                    },
-                    onRoommateClick = {
-                        // TODO: 导航到「合租拼房」页面，例如 navController.navigate(ROOMMATE_ROUTE)
+                        // TODO: 雪圈发帖导航
                     }
                 )
             }
 
-            composable(PROFILE_ROUTE) { ProfileScreen(onLogout = onLogout) }
-            composable(LOST_AND_FOUND_ROUTE) { LostAndFoundScreen() }
-            composable(RECORD_ROUTE) { RecordRoute(onBack = { navController.popBackStack() }) }
+            // 发现首页
+            composable(BottomNavItem.Discover.route) {
+                DiscoverScreen(
+                    onLostAndFoundClick = { navController.navigate(LOST_AND_FOUND_ROUTE) },
+                    onCarpoolClick = { navController.navigate(CARPOOL_ROUTE) },
+                    onRoommateClick = { navController.navigate(ROOMMATE_ROUTE) },
+
+                )
+            }
+
+            // 个人中心
+            composable(PROFILE_ROUTE) {
+                ProfileScreen(onLogout = onLogout)
+            }
+
+            // —— 失物招领 —— //
+            composable(LOST_AND_FOUND_ROUTE) {
+                LostAndFoundScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onPublishClick = { navController.navigate(LOST_AND_FOUND_PUBLISH_ROUTE) }
+                )
+            }
+            composable(LOST_AND_FOUND_PUBLISH_ROUTE) {
+                LostAndFoundPublishScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onPublished = {
+                        // 关闭发布页，回到列表
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            // —— 顺风车 —— //
+            composable(CARPOOL_ROUTE) {
+                CarpoolScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onPublishClick = { navController.navigate(CARPOOL_PUBLISH_ROUTE) },
+                    onMyCarpoolClick = { navController.navigate(MY_CARPOOL_ROUTE) }
+                )
+            }
+            composable(CARPOOL_PUBLISH_ROUTE) {
+                CarpoolPublishScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onPublished = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+            composable(MY_CARPOOL_ROUTE) {
+                MyCarpoolScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            // —— 拼房合租 —— //
+            composable(ROOMMATE_ROUTE) {
+                RoommateScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onPublishClick = { navController.navigate(ROOMMATE_PUBLISH_ROUTE) },
+                    onMyRoommateClick = { navController.navigate(MY_ROOMMATE_ROUTE) }
+                )
+            }
+            composable(ROOMMATE_PUBLISH_ROUTE) {
+                RoommatePublishScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onPublished = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+            composable(MY_ROOMMATE_ROUTE) {
+                MyRoommateScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            // 全屏录制页
+            composable(RECORD_ROUTE) {
+                RecordRoute(onBack = { navController.popBackStack() })
+            }
         }
     }
 }
+
 private fun NavDestination?.isRouteInHierarchy(route: String): Boolean {
     return this?.hierarchy?.any { it.route == route } == true
 }
