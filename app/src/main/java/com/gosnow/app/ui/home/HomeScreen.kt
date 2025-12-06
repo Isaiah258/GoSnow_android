@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,15 +21,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Flare
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material.icons.filled.Timelapse
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -44,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -98,7 +101,7 @@ fun HomeScreen(
     onBottomNavSelected: (BottomNavItem) -> Unit,
     currentRoute: String,
     modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val navItems = listOf(
@@ -124,12 +127,10 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
         ) {
-            HeaderSection()
-            Spacer(modifier = Modifier.height(20.dp))
-            TodaySummaryCard(uiState)
+            HeroSection(uiState = uiState)
             Spacer(modifier = Modifier.height(20.dp))
             LifetimeStatsSection(uiState)
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             FeaturedSection(onFeatureClick = onFeatureClick)
             Spacer(modifier = Modifier.height(32.dp))
             PrimaryActionButton(onStartRecording = onStartRecording)
@@ -139,17 +140,83 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HeaderSection() {
+private fun HeroSection(uiState: HomeUiState) {
+    val gradient = Brush.linearGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f)
+        )
+    )
+
     Surface(
-        tonalElevation = 4.dp,
+        modifier = Modifier
+            .padding(horizontal = 20.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        tonalElevation = 8.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .background(gradient)
+                .padding(20.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SeasonGreeting()
+                TodaySummary(uiState = uiState)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeasonGreeting() {
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
-        color = MaterialTheme.colorScheme.surface
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "25–26 雪季",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "欢迎回来，准备好开冲了吗？",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Surface(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodaySummary(uiState: HomeUiState) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+        )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
+                .padding(horizontal = 18.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
@@ -157,86 +224,58 @@ private fun HeaderSection() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column {
                     Text(
-                        text = "25–26 雪季",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "准备好开冲了吗？",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                        text = "今日滑行",
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Flare,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                    Text(
+                        text = "保持呼吸节奏，畅快滑行",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                AssistChip(
+                    onClick = {},
+                    label = { Text(text = "状态 · 良好") },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    ),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Timelapse,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                )
             }
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-            Text(
-                text = "雪场天气晴朗，滑雪的绝佳时刻！",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun TodaySummaryCard(uiState: HomeUiState) {
-    ElevatedCard(
-        modifier = Modifier
-            .padding(horizontal = 20.dp)
-            .fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = "今日滑行",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = String.format("%.1f", uiState.todayDistanceKm),
                     style = MaterialTheme.typography.displaySmall.copy(
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 52.sp
+                        fontSize = 54.sp
                     ),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "km",
                     style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                MetricChip(label = "状态", value = "呼吸顺畅 · 状态佳")
                 MetricChip(label = "雪况", value = "粉雪 · 轻松滑行")
+                MetricChip(label = "呼吸", value = "节奏顺畅")
+                MetricChip(label = "目标", value = "15 km / 日")
             }
         }
     }
@@ -245,8 +284,8 @@ private fun TodaySummaryCard(uiState: HomeUiState) {
 @Composable
 private fun MetricChip(label: String, value: String) {
     Surface(
-        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.06f),
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         shape = RoundedCornerShape(50)
     ) {
         Row(
@@ -273,28 +312,44 @@ private fun LifetimeStatsSection(uiState: HomeUiState) {
         modifier = Modifier.padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = "生涯数据",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                StatCard(
-                    title = "总里程",
-                    value = String.format("%.1f km", uiState.totalDistanceKm),
-                    modifier = Modifier.weight(1f)
-                )
-                StatCard(
-                    title = "总时长",
-                    value = String.format("%.1f 小时", uiState.totalDurationHours),
-                    modifier = Modifier.weight(1f)
-                )
-            }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "生涯数据",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "雪场故事在继续",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            StatCard(
+                title = "总里程",
+                value = String.format("%.1f km", uiState.totalDistanceKm),
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                title = "总时长",
+                value = String.format("%.1f 小时", uiState.totalDurationHours),
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             StatCard(
                 title = "在雪天数",
                 value = "${uiState.daysOnSnow} 天",
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                title = "状态记录",
+                value = "本季稳步提升",
+                modifier = Modifier.weight(1f)
             )
         }
     }
@@ -338,7 +393,8 @@ private fun FeaturedSection(onFeatureClick: (String) -> Unit) {
             modifier = Modifier.padding(bottom = 12.dp)
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(featureItems) { item ->
+            items(featureItems.size) { index ->
+                val item = featureItems[index]
                 FeatureTile(item = item, onClick = { onFeatureClick(item.title) })
             }
         }
@@ -414,7 +470,7 @@ private fun PrimaryActionButton(onStartRecording: () -> Unit) {
         Button(
             onClick = onStartRecording,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(50),
+            shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
             Text(
@@ -433,7 +489,7 @@ fun BottomNavigationBar(
     currentRoute: String,
     onItemSelected: (BottomNavItem) -> Unit
 ) {
-    NavigationBar {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
         items.forEach { item ->
             NavigationBarItem(
                 selected = currentRoute == item.route,
