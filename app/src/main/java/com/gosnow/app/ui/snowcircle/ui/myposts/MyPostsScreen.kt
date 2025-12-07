@@ -5,19 +5,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
@@ -31,11 +29,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.gosnow.app.ui.snowcircle.model.Post
+import com.gosnow.app.ui.snowcircle.ui.components.PostCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,7 +44,7 @@ fun MyPostsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("我的帖子 / My Posts") },
+                title = { Text("我的帖子") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = null)
@@ -76,7 +72,7 @@ fun MyPostsScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(uiState.errorMessage!!)
                     TextButton(onClick = { viewModel.refresh() }) {
-                        Text("Retry")
+                        Text("重试")
                     }
                 }
             }
@@ -87,7 +83,7 @@ fun MyPostsScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("You haven't posted yet")
+                Text("你还没有发布任何内容")
             }
 
             else -> {
@@ -95,16 +91,16 @@ fun MyPostsScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
-                    items(uiState.posts, key = { it.id }) { post ->
+                    itemsIndexed(uiState.posts, key = { _, item -> item.id }) { index, post ->
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = { value ->
                                 if (value == SwipeToDismissBoxValue.StartToEnd ||
                                     value == SwipeToDismissBoxValue.EndToStart
                                 ) {
                                     viewModel.deletePost(post.id)
-                                    true   // 允许进入这个状态
+                                    true
                                 } else {
                                     false
                                 }
@@ -117,62 +113,34 @@ fun MyPostsScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .background(Color.Red)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
                                         .padding(horizontal = 20.dp),
                                     contentAlignment = Alignment.CenterEnd
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.Delete,
                                         contentDescription = null,
-                                        tint = Color.White
+                                        tint = MaterialTheme.colorScheme.error
                                     )
                                 }
                             },
                             content = {
-                                MyPostRow(
+                                PostCard(
                                     post = post,
-                                    onClick = {
-                                        navController.navigate("post_detail/${post.id}")
-                                    }
+                                    onClick = { navController.navigate("post_detail/${post.id}") },
+                                    onLikeClick = {},
+                                    onCommentClick = { navController.navigate("post_detail/${post.id}") },
+                                    onImageClick = { index -> navController.navigate("image_viewer/${post.id}/$index") },
+                                    modifier = Modifier
                                 )
                             }
                         )
+                        if (index < uiState.posts.lastIndex) {
+                            Divider()
+                        }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun MyPostRow(
-    post: Post,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .fillMaxWidth(),
-        onClick = onClick
-    ) {
-        ListItem(
-            headlineContent = {
-                Text(
-                    text = post.content,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            },
-            supportingContent = { Text(post.createdAt) },
-            leadingContent = {
-                post.resortName?.let { Text("#$it") }
-            },
-            trailingContent = {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text("👍 ${post.likeCount}")
-                    Text("💬 ${post.commentCount}")
-                }
-            }
-        )
     }
 }

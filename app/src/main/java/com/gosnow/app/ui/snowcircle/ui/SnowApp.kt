@@ -17,6 +17,7 @@ import com.gosnow.app.ui.snowcircle.data.NotificationsRepository
 import com.gosnow.app.ui.snowcircle.data.PostRepository
 import com.gosnow.app.ui.snowcircle.data.currentUser
 import com.gosnow.app.ui.snowcircle.ui.compose.ComposePostScreen
+import com.gosnow.app.ui.snowcircle.ui.compose.ComposePostViewModel
 import com.gosnow.app.ui.snowcircle.ui.detail.PostDetailScreen
 import com.gosnow.app.ui.snowcircle.ui.detail.PostDetailViewModel
 import com.gosnow.app.ui.snowcircle.ui.feed.FeedScreen
@@ -49,7 +50,8 @@ fun SnowApp() {
                     NotificationsScreen(viewModel = vm, navController = navController)
                 }
                 composable("compose_post") {
-                    ComposePostScreen(navController = navController)
+                    val vm: ComposePostViewModel = viewModel(factory = container.factory { ComposePostViewModel(container.postRepository, container.currentUser) })
+                    ComposePostScreen(navController = navController, viewModel = vm)
                 }
                 composable("post_detail/{postId}") { backStackEntry ->
                     val postId = backStackEntry.arguments?.getString("postId") ?: return@composable

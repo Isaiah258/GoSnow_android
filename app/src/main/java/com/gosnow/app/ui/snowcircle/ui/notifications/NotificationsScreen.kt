@@ -1,13 +1,17 @@
 package com.gosnow.app.ui.snowcircle.ui.notifications
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,9 +45,9 @@ fun NotificationsScreen(viewModel: NotificationsViewModel, navController: NavCon
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("通知 / Notifications") },
+                title = { Text("通知") },
                 actions = {
-                    TextButton(onClick = { viewModel.markAllRead() }) { Text("Mark all read") }
+                    TextButton(onClick = { viewModel.markAllRead() }) { Text("全部标为已读") }
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -57,15 +61,18 @@ fun NotificationsScreen(viewModel: NotificationsViewModel, navController: NavCon
             uiState.isLoading -> Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
+
             uiState.errorMessage != null -> Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(uiState.errorMessage!!)
-                    TextButton(onClick = { viewModel.refresh() }) { Text("Retry") }
+                    TextButton(onClick = { viewModel.refresh() }) { Text("重试") }
                 }
             }
+
             uiState.notifications.isEmpty() -> Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No notifications")
+                Text("暂无通知")
             }
+
             else -> LazyColumn(modifier = Modifier.fillMaxSize().padding(padding)) {
                 items(uiState.notifications, key = { it.id }) { item ->
                     NotificationRow(item = item, onClick = {
@@ -85,24 +92,30 @@ fun NotificationsScreen(viewModel: NotificationsViewModel, navController: NavCon
 
 @Composable
 private fun NotificationRow(item: NotificationItem, onClick: () -> Unit) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(12.dp)
-            .padding(vertical = 6.dp)
             .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(notificationText(item), style = MaterialTheme.typography.bodyLarge)
-        Text(item.createdAt, style = MaterialTheme.typography.bodySmall)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(notificationText(item), style = MaterialTheme.typography.bodyLarge)
+            Text(item.createdAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         if (!item.isRead) {
-            Text("Unread", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(color = MaterialTheme.colorScheme.error, shape = CircleShape)
+            )
         }
     }
 }
 
 private fun notificationText(item: NotificationItem): String = when (item.type) {
-    NotificationType.LIKE_POST -> "${item.actor.displayName} liked your post"
-    NotificationType.LIKE_COMMENT -> "${item.actor.displayName} liked your comment"
-    NotificationType.COMMENT_POST -> "${item.actor.displayName} commented on your post"
-    NotificationType.REPLY_COMMENT -> "${item.actor.displayName} replied to your comment"
+    NotificationType.LIKE_POST -> "${item.actor.displayName} 赞了你的帖子"
+    NotificationType.LIKE_COMMENT -> "${item.actor.displayName} 赞了你的评论"
+    NotificationType.COMMENT_POST -> "${item.actor.displayName} 评论了你的帖子"
+    NotificationType.REPLY_COMMENT -> "${item.actor.displayName} 回复了你的评论"
 }

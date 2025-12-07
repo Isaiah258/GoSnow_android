@@ -24,9 +24,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.Comment
 import androidx.compose.material.icons.outlined.ThumbUp
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -40,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -49,48 +47,54 @@ import com.gosnow.app.ui.snowcircle.model.User
 @Composable
 fun PostCard(
     post: Post,
-    onClick: (Post) -> Unit,
-    onToggleLike: (Post) -> Unit,
-    onComment: (Post) -> Unit,
+    onClick: () -> Unit,
+    onLikeClick: () -> Unit,
+    onCommentClick: () -> Unit,
     onImageClick: (index: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Column(
         modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clickable { onClick(post) },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp)
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            PostHeader(post)
+        PostHeader(post)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = post.content,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (post.imageUrls.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = post.content, maxLines = 4, style = MaterialTheme.typography.bodyMedium)
-            if (post.imageUrls.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                ImageGrid(urls = post.imageUrls, onImageClick = onImageClick)
+            ImageGrid(urls = post.imageUrls, onImageClick = onImageClick)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            post.resortName?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.weight(1f))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                post.resortName?.let {
-                    AssistChip(onClick = {}, label = { Text(it) })
+                IconButton(onClick = onLikeClick) {
+                    Icon(
+                        imageVector = if (post.isLikedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                        contentDescription = "赞",
+                        tint = if (post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                    )
                 }
-                Spacer(modifier = Modifier.weight(1f))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { onToggleLike(post) }) {
-                        Icon(
-                            imageVector = if (post.isLikedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                            contentDescription = null,
-                            tint = if (post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    Text(text = "${post.likeCount}")
-                    Spacer(modifier = Modifier.width(12.dp))
-                    IconButton(onClick = { onComment(post) }) {
-                        Icon(imageVector = Icons.Outlined.Comment, contentDescription = null)
-                    }
-                    Text(text = "${post.commentCount}")
+                Text(text = "${post.likeCount}")
+                Spacer(modifier = Modifier.width(12.dp))
+                IconButton(onClick = onCommentClick) {
+                    Icon(imageVector = Icons.Outlined.Comment, contentDescription = "评论")
                 }
+                Text(text = "${post.commentCount}")
             }
         }
     }
@@ -110,7 +114,21 @@ private fun PostHeader(post: Post) {
         Spacer(modifier = Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = post.author.displayName, style = MaterialTheme.typography.titleMedium)
-            Text(text = post.createdAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                post.resortName?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Text(
+                    text = post.createdAt,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         val expanded = remember { mutableStateOf(false) }
         Box {
@@ -118,9 +136,9 @@ private fun PostHeader(post: Post) {
                 Icon(Icons.Filled.MoreVert, contentDescription = null)
             }
             DropdownMenu(expanded = expanded.value, onDismissRequest = { expanded.value = false }) {
-                DropdownMenuItem(text = { Text("Report") }, onClick = { expanded.value = false })
+                DropdownMenuItem(text = { Text("举报") }, onClick = { expanded.value = false })
                 if (post.canDelete) {
-                    DropdownMenuItem(text = { Text("Delete") }, onClick = { expanded.value = false })
+                    DropdownMenuItem(text = { Text("删除") }, onClick = { expanded.value = false })
                 }
             }
         }
@@ -262,8 +280,8 @@ private fun PreviewPostCard() {
             isLikedByMe = false
         ),
         onClick = {},
-        onToggleLike = {},
-        onComment = {},
-        onImageClick = {}
+        onLikeClick = {},
+        onCommentClick = {},
+        onImageClick = {},
     )
 }
