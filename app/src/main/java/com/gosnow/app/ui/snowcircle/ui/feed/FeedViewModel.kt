@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.math.min
+private const val PAGE_SIZE = 20
+private var fullFeed: List<Post> = emptyList()
 
 private val resortList = listOf("Niseko", "Hakuba", "Whistler", "Zermatt", "Aspen", "Stowe")
 
@@ -20,8 +23,10 @@ data class FeedUiState(
     val selectedResort: String? = null,
     val posts: List<Post> = emptyList(),
     val resortSuggestions: List<String> = emptyList(),
-    val hasUnreadNotifications: Boolean = false
+    val hasUnreadNotifications: Boolean = false,
+    val visibleCount: Int = PAGE_SIZE
 )
+
 
 open class FeedViewModel(
     private val postRepository: PostRepository,
@@ -42,39 +47,75 @@ open class FeedViewModel(
         }
     }
 
+
+
     open fun refresh() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             runCatching {
-                val posts = postRepository.getFeedPosts(_uiState.value.selectedResort)
-                posts
+                postRepository.getFeedPosts(_uiState.value.selectedResort)
             }.onSuccess { posts ->
-                _uiState.update { state -> state.copy(isLoading = false, posts = filter(posts)) }
+                fullFeed = posts
+                val filtered = filter(fullFeed)
+                _uiState.update { state ->
+                    state.copy(
+                        isLoading = false,
+                        posts = filtered,
+                        visibleCount = min(PAGE_SIZE, filtered.size)
+                    )
+                }
             }.onFailure { error ->
-                _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: "Load failed") }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Load failed"
+                    )
+                }
             }
         }
     }
+
 
     fun onQueryChange(text: String) {
         _uiState.update { state ->
             state.copy(
                 query = text,
-                selectedResort = if (state.selectedResort != null && text.isNotBlank()) state.selectedResort else state.selectedResort,
-                resortSuggestions = if (text.isBlank()) emptyList() else resortList.filter { it.contains(text, true) }
+                // selectedResort 不跟着乱动，保持当前雪场过滤
+                selectedResort = state.selectedResort,
+                resortSuggestions = if (text.isBlank()) {
+                    emptyList()
+                } else {
+                    resortList.filter { it.contains(text, ignoreCase = true) }
+                }
             )
         }
-        val currentPosts = _uiState.value.posts
+
         if (!_uiState.value.isLoading) {
-            _uiState.update { it.copy(posts = filter(currentPosts)) }
+            val filtered = filter(fullFeed)
+            _uiState.update {
+                it.copy(
+                    posts = filtered,
+                    visibleCount = min(PAGE_SIZE, filtered.size)
+                )
+            }
         }
     }
+
 
     fun onResortSelected(resort: String?) {
         _uiState.update { it.copy(selectedResort = resort, query = "") }
         refresh()
     }
+    fun onLoadMore() {
+        _uiState.update { state ->
+            val newCount = (state.visibleCount + PAGE_SIZE)
+                .coerceAtMost(state.posts.size)
+            state.copy(visibleCount = newCount)
+        }
+    }
+
+
 
     fun onToggleLike(postId: String) {
         viewModelScope.launch {

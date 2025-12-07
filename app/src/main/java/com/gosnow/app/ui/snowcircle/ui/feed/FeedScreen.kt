@@ -2,6 +2,7 @@ package com.gosnow.app.ui.snowcircle.ui.feed
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,7 +24,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Article
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -45,8 +45,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -64,6 +65,8 @@ fun FeedScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
+    val focusManager = LocalFocusManager.current
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -83,8 +86,10 @@ fun FeedScreen(
                             Box(
                                 modifier = Modifier
                                     .size(10.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.error)
+                                    .background(
+                                        MaterialTheme.colorScheme.error,
+                                        CircleShape
+                                    )
                                     .align(Alignment.TopEnd),
                             )
                         }
@@ -94,47 +99,32 @@ fun FeedScreen(
                     IconButton(onClick = { navController.navigate("my_posts") }) {
                         Icon(Icons.Outlined.Article, contentDescription = "我的帖子")
                     }
-                    IconButton(onClick = { navController.navigate("compose_post") }) {
-                        Icon(Icons.Outlined.Edit, contentDescription = "发布")
-                    }
+                    // 右上角“笔”图标已移除
                 },
                 colors = TopAppBarDefaults.topAppBarColors()
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { navController.navigate("compose_post") }) {
+            FloatingActionButton(
+                onClick = { navController.navigate("compose_post") },
+                containerColor = Color.Black,
+                contentColor = Color.White
+            ) {
                 Icon(Icons.Filled.Add, contentDescription = "发布")
             }
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            Spacer(modifier = Modifier.height(8.dp))
-            SearchBar(
-                value = uiState.query,
-                onValueChange = viewModel::onQueryChange,
-                onClear = { viewModel.onQueryChange("") }
-            )
-            if (uiState.query.isNotBlank() && uiState.selectedResort == null) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    uiState.resortSuggestions.forEach { resort ->
-                        AssistChip(
-                            onClick = { viewModel.onResortSelected(resort) },
-                            label = { Text(resort) },
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                    }
-                }
-            }
-            uiState.selectedResort?.let {
-                SelectedResortCard(resort = it, onClear = { viewModel.onResortSelected(null) })
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(padding)
+        ) {
             when {
-                uiState.isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                uiState.isLoading -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator()
                 }
 
@@ -148,35 +138,104 @@ fun FeedScreen(
                     }
                 }
 
-                uiState.posts.isEmpty() -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    val msg = if (uiState.selectedResort == null) "暂无帖子" else "该雪场暂无帖子，快来分享吧"
+                uiState.posts.isEmpty() -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val msg =
+                        if (uiState.selectedResort == null) "暂无帖子" else "该雪场暂无帖子，快来分享吧"
                     Text(msg)
                 }
 
                 else -> LazyColumn(
                     state = listState,
-                    contentPadding = PaddingValues(bottom = 80.dp)
+                    contentPadding = PaddingValues(bottom = 80.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = { focusManager.clearFocus() })
+                        }
                 ) {
-                    itemsIndexed(uiState.posts, key = { _, item -> item.id }) { index, post ->
+                    // 搜索栏和筛选区域作为列表的一部分
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SearchBar(
+                            value = uiState.query,
+                            onValueChange = viewModel::onQueryChange,
+                            onClear = { viewModel.onQueryChange("") }
+                        )
+                        if (uiState.query.isNotBlank() && uiState.selectedResort == null) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                uiState.resortSuggestions.forEach { resort ->
+                                    AssistChip(
+                                        onClick = { viewModel.onResortSelected(resort) },
+                                        label = { Text(resort) },
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                        uiState.selectedResort?.let {
+                            SelectedResortCard(
+                                resort = it,
+                                onClear = { viewModel.onResortSelected(null) }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    itemsIndexed(
+                        uiState.posts.take(uiState.visibleCount),
+                        key = { _, item -> item.id }
+                    ) { index, post ->
                         PostCard(
                             post = post,
                             onClick = { navController.navigate("post_detail/${post.id}") },
                             onLikeClick = { viewModel.onToggleLike(post.id) },
                             onCommentClick = { navController.navigate("post_detail/${post.id}") },
-                            onImageClick = { imageIndex -> navController.navigate("image_viewer/${post.id}/$imageIndex") }
+                            onImageClick = { imageIndex ->
+                                navController.navigate("image_viewer/${post.id}/$imageIndex")
+                            }
                         )
-                        if (index < uiState.posts.lastIndex) {
+                        if (index < uiState.posts.take(uiState.visibleCount).lastIndex) {
                             Divider()
                         }
                     }
+                    item {
+                        if (uiState.visibleCount < uiState.posts.size) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                TextButton(onClick = { viewModel.onLoadMore() }) {
+                                    Text("加载更多")
+                                }
+                            }
+                        }
+                    }
+
+
+
                 }
+
             }
         }
     }
 }
 
 @Composable
-private fun SearchBar(value: String, onValueChange: (String) -> Unit, onClear: () -> Unit) {
+private fun SearchBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onClear: () -> Unit
+) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -184,20 +243,29 @@ private fun SearchBar(value: String, onValueChange: (String) -> Unit, onClear: (
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         placeholder = { Text("搜索帖子或雪场") },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        leadingIcon = {
+            Icon(Icons.Filled.Search, contentDescription = null)
+        },
         trailingIcon = {
             if (value.isNotEmpty()) {
-                IconButton(onClick = onClear) { Icon(Icons.Filled.Close, contentDescription = "清空") }
+                IconButton(onClick = onClear) {
+                    Icon(Icons.Filled.Close, contentDescription = "清空")
+                }
             }
         },
         singleLine = true,
         shape = CircleShape,
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            disabledContainerColor = Color.White,
             focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent
+            unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            focusedTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unfocusedTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     )
 }
@@ -210,11 +278,20 @@ private fun SelectedResortCard(resort: String, onClear: () -> Unit) {
             .padding(16.dp),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("已选择雪场", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "已选择雪场",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Text(resort, style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = { /* TODO: open resort detail */ }) { Text("查看雪场详情") }
+                TextButton(onClick = { /* TODO: open resort detail */ }) {
+                    Text("查看雪场详情")
+                }
             }
             IconButton(onClick = onClear) {
                 Icon(Icons.Filled.Close, contentDescription = "移除雪场")
@@ -238,17 +315,26 @@ private fun PreviewFeed() {
     }
 }
 
-private class FakeFeedViewModel(private val posts: List<Post>) : FeedViewModel(
+private class FakeFeedViewModel(
+    private val posts: List<Post>
+) : FeedViewModel(
     postRepository = object : com.gosnow.app.ui.snowcircle.data.PostRepository {
         override suspend fun getFeedPosts(resortFilter: String?) = posts
         override suspend fun getMyPosts(currentUserId: String) = emptyList<Post>()
         override suspend fun getPostById(postId: String) = posts.firstOrNull()
         override suspend fun toggleLike(postId: String, currentUserId: String) = posts.firstOrNull()
         override suspend fun deletePost(postId: String, currentUserId: String) {}
-        override suspend fun createPost(content: String, resortName: String?, images: List<String>, currentUser: User) = posts.first()
+        override suspend fun createPost(
+            content: String,
+            resortName: String?,
+            images: List<String>,
+            currentUser: User
+        ) = posts.first()
     },
     notificationsRepository = object : com.gosnow.app.ui.snowcircle.data.NotificationsRepository {
-        override suspend fun getNotifications(currentUserId: String) = emptyList<com.gosnow.app.ui.snowcircle.model.NotificationItem>()
+        override suspend fun getNotifications(currentUserId: String) =
+            emptyList<com.gosnow.app.ui.snowcircle.model.NotificationItem>()
+
         override suspend fun markAllRead(currentUserId: String) {}
         override suspend fun markRead(notificationId: Long) {}
     },
@@ -260,6 +346,6 @@ private class FakeFeedViewModel(private val posts: List<Post>) : FeedViewModel(
     }
 
     override fun refresh() {
-        // no-op for preview
+        // 预览用，不需要真的刷新
     }
 }

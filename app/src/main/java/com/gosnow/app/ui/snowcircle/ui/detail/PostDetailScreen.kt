@@ -12,13 +12,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Comment
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,32 +32,49 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.gosnow.app.ui.snowcircle.ui.components.CommentRow
 import com.gosnow.app.ui.snowcircle.ui.components.ImageGrid
+import com.gosnow.app.ui.snowcircle.ui.components.ResortTag
 import com.gosnow.app.ui.snowcircle.model.Comment
 import com.gosnow.app.ui.snowcircle.model.Post
+import androidx.compose.material.icons.outlined.Comment
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+
 fun PostDetailScreen(
+
     viewModel: PostDetailViewModel,
     navController: NavController
 ) {
     val uiState = viewModel.uiState.collectAsState()
     val replyText = remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Post") },
+                title = { Text("帖子") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = null)
@@ -61,59 +83,75 @@ fun PostDetailScreen(
             )
         },
         bottomBar = {
-            uiState.value.replyTarget?.let { target ->
-                ReplyComposerBar(
-                    targetName = target.author.displayName,
-                    text = replyText.value,
-                    onTextChange = { replyText.value = it },
-                    onSend = {
-                        if (replyText.value.isNotBlank()) {
-                            viewModel.onSendComment(replyText.value, target.id)
-                            replyText.value = ""
-                        }
-                    },
-                    onDismiss = { viewModel.onReplyTargetSelected(null) }
-                )
-            }
+            ReplyComposerBar(
+                isReplyToPost = uiState.value.replyTarget == null,
+                targetName = uiState.value.replyTarget?.author?.displayName,
+                text = replyText.value,
+                onTextChange = { replyText.value = it },
+                onSend = {
+                    if (replyText.value.isNotBlank()) {
+                        val parentId = uiState.value.replyTarget?.id
+                        viewModel.onSendComment(replyText.value, parentId)
+                        replyText.value = ""
+                    }
+                },
+                focusRequester = focusRequester
+            )
         }
     ) { padding ->
-        when {
-            uiState.value.isLoading -> Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                }
+                .padding(padding)
+        ) {
+            when {
+                uiState.value.isLoading -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
 
-            uiState.value.errorMessage != null -> Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(uiState.value.errorMessage!!)
-                    TextButton(onClick = { viewModel.refresh() }) { Text("Retry") }
+                uiState.value.errorMessage != null -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(uiState.value.errorMessage!!)
+                        TextButton(onClick = { viewModel.refresh() }) { Text("重试") }
+                    }
+                }
+
+                uiState.value.post != null -> {
+                    val post = uiState.value.post!!
+                    PostDetailContent(
+                        post = post,
+                        comments = uiState.value.comments,
+                        onImageClick = { index ->
+                            navController.navigate("image_viewer/${post.id}/$index")
+                        },
+                        onLike = { viewModel.onTogglePostLike() },
+                        onComment = {
+                            // 针对主帖评论：parentId = null
+                            viewModel.onReplyTargetSelected(null)
+                            focusRequester.requestFocus()
+                        },
+                        onReplyComment = { comment ->
+                            // 针对某条评论回复
+                            viewModel.onReplyTargetSelected(comment)
+                            focusRequester.requestFocus()
+                        },
+                        onLikeComment = { comment -> viewModel.onToggleCommentLike(comment.id) },
+                        onDeleteComment = { comment -> viewModel.onDeleteComment(comment.id) },
+                        onReport = { }
+                    )
+
                 }
             }
-
-            uiState.value.post != null -> {
-                val post = uiState.value.post!!   // 这里已经在 when 分支里保证非空了
-
-                PostDetailContent(
-                    post = post,
-                    comments = uiState.value.comments,
-                    onImageClick = { index ->
-                        navController.navigate("image_viewer/${post.id}/$index")
-                    },
-                    onLike = { viewModel.onTogglePostLike() },
-                    onComment = { viewModel.onReplyTargetSelected(null) },
-                    onReplyComment = { comment -> viewModel.onReplyTargetSelected(comment) },
-                    onLikeComment = { comment -> viewModel.onToggleCommentLike(comment.id) },
-                    onDeleteComment = { comment -> viewModel.onDeleteComment(comment.id) },
-                    onReport = { }
-                )
-            }
         }
-
     }
 }
 
@@ -129,32 +167,101 @@ private fun PostDetailContent(
     onDeleteComment: (Comment) -> Unit,
     onReport: (Comment) -> Unit
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 120.dp)
+    ) {
         item {
-            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(post.author.displayName, style = MaterialTheme.typography.titleMedium)
-                    Text(post.createdAt, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        post.author.displayName,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        post.createdAt,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(post.content, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    post.content,
+                    style = MaterialTheme.typography.bodyLarge
+                )
                 if (post.imageUrls.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     ImageGrid(urls = post.imageUrls, onImageClick = onImageClick)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                post.resortName?.let { Text("#${it}", color = MaterialTheme.colorScheme.primary) }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    FilledTonalButton(onClick = onLike) { Text("👍 ${post.likeCount}") }
-                    FilledTonalButton(onClick = onComment) { Text("💬 ${post.commentCount}") }
+                post.resortName?.let {
+                    ResortTag(name = it)
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickableNoRipple { onLike() }
+                    ) {
+                        Icon(
+                            imageVector = if (post.isLikedByMe)
+                                Icons.Filled.ThumbUp
+                            else
+                                Icons.Outlined.ThumbUp,
+                            contentDescription = "赞",
+                            tint = if (post.isLikedByMe)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "${post.likeCount}")
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickableNoRipple { onComment() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Comment,
+                            contentDescription = "评论",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "${post.commentCount}")
+                    }
+                }
+
             }
             Divider()
-            Text("评论 / Comments", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
+            Text(
+                "评论",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(16.dp)
+            )
         }
         if (comments.roots.isEmpty()) {
-            item { Text("暂无评论 / No comments", modifier = Modifier.padding(16.dp)) }
+            item {
+                Text(
+                    "暂无评论",
+                    modifier = Modifier.padding(16.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         } else {
             items(comments.roots, key = { it.id }) { root ->
                 Column(modifier = Modifier.padding(horizontal = 12.dp)) {
@@ -177,7 +284,9 @@ private fun PostDetailContent(
                             )
                         }
                         if (replies.size > 3) {
-                            TextButton(onClick = { /* TODO expand */ }) { Text("展开更多 / Show more") }
+                            TextButton(onClick = { /* TODO 展开更多 */ }) {
+                                Text("展开更多")
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -187,14 +296,27 @@ private fun PostDetailContent(
     }
 }
 
+/** 比较简易的无水波 clickable，用来做点赞/评论区域 */
+@Composable
+private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier =
+    this.then(
+        Modifier.clickable(
+            indication = null,
+            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+            onClick = onClick
+        )
+    )
+
 @Composable
 private fun ReplyComposerBar(
-    targetName: String,
+    isReplyToPost: Boolean,
+    targetName: String?,
     text: String,
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
-    onDismiss: () -> Unit
+    focusRequester: FocusRequester
 ) {
+    val focusManager = LocalFocusManager.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -203,15 +325,38 @@ private fun ReplyComposerBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("Reply to $targetName", style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = if (isReplyToPost) "发表评论" else "回复 $targetName",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             TextField(
                 value = text,
                 onValueChange = onTextChange,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Say something…") }
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
+                placeholder = { Text("写点什么…") },
+                shape = CircleShape,
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    disabledContainerColor = Color.White,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                )
             )
         }
-        IconButton(onClick = onSend) { Icon(Icons.Filled.Send, contentDescription = null) }
-        IconButton(onClick = onDismiss) { Icon(Icons.Filled.ArrowBack, contentDescription = "Cancel") }
+        IconButton(
+            onClick = {
+                onSend()
+                focusManager.clearFocus()
+            }
+        ) {
+            Icon(Icons.Filled.Send, contentDescription = "发送")
+        }
     }
 }
+

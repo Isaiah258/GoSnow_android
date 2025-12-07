@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -74,11 +75,7 @@ fun PostCard(
         Spacer(modifier = Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             post.resortName?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                ResortTag(name = it)
             }
             Spacer(modifier = Modifier.weight(1f))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -114,21 +111,11 @@ private fun PostHeader(post: Post) {
         Spacer(modifier = Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(text = post.author.displayName, style = MaterialTheme.typography.titleMedium)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                post.resortName?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                }
-                Text(
-                    text = post.createdAt,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = post.createdAt,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         val expanded = remember { mutableStateOf(false) }
         Box {
@@ -145,14 +132,31 @@ private fun PostHeader(post: Post) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/** 灰色胶囊雪场标签 */
+@Composable
+fun ResortTag(name: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color(0xFFF0F0F0))
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = name,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 @Composable
 fun ImageGrid(urls: List<String>, onImageClick: (Int) -> Unit) {
     when (urls.size) {
         1 -> SingleImage(urls[0], onImageClick)
         2 -> TwoImages(urls, onImageClick)
         3 -> ThreeImages(urls, onImageClick)
-        else -> GridImages(urls, onImageClick)
+        4 -> FourImages(urls, onImageClick)
+        else -> ManyImages(urls, onImageClick)
     }
 }
 
@@ -172,7 +176,12 @@ private fun SingleImage(url: String, onClick: (Int) -> Unit) {
 
 @Composable
 private fun TwoImages(urls: List<String>, onClick: (Int) -> Unit) {
-    Row(modifier = Modifier.height(160.dp)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
         urls.take(2).forEachIndexed { index, url ->
             AsyncImage(
                 model = url,
@@ -180,29 +189,34 @@ private fun TwoImages(urls: List<String>, onClick: (Int) -> Unit) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .clickable { onClick(index) }
             )
-            if (index == 0) Spacer(modifier = Modifier.width(4.dp))
         }
     }
 }
 
 @Composable
 private fun ThreeImages(urls: List<String>, onClick: (Int) -> Unit) {
-    Row(modifier = Modifier.height(200.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
         AsyncImage(
             model = urls[0],
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .weight(2f)
-                .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .clickable { onClick(0) }
         )
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             AsyncImage(
                 model = urls[1],
                 contentDescription = null,
@@ -227,42 +241,112 @@ private fun ThreeImages(urls: List<String>, onClick: (Int) -> Unit) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun GridImages(urls: List<String>, onClick: (Int) -> Unit) {
-    val display = urls.take(4)
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        modifier = Modifier.height(220.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+private fun FourImages(urls: List<String>, onClick: (Int) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        itemsIndexed(display) { index, url ->
-            Box {
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            urls.take(2).forEachIndexed { index, url ->
                 AsyncImage(
                     model = url,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
+                        .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { onClick(index) }
                 )
-                if (index == display.lastIndex && urls.size > 4) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "+${urls.size - 4}", color = MaterialTheme.colorScheme.onPrimary)
+            }
+        }
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            urls.drop(2).take(2).forEachIndexed { index, url ->
+                val realIndex = index + 2
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onClick(realIndex) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ManyImages(urls: List<String>, onClick: (Int) -> Unit) {
+    val display = urls.take(4)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            display.take(2).forEachIndexed { index, url ->
+                AsyncImage(
+                    model = url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onClick(index) }
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            display.drop(2).take(2).forEachIndexed { index, url ->
+                val realIndex = index + 2
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onClick(realIndex) }
+                ) {
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                    if (realIndex == display.lastIndex && urls.size > 4) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "+${urls.size - 4}",
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
+
 
 @Preview
 @Composable
