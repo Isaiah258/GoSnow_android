@@ -34,7 +34,7 @@ import com.gosnow.app.ui.home.BottomNavItem
 import com.gosnow.app.ui.home.BottomNavigationBar
 import com.gosnow.app.ui.home.HomeScreen
 import com.gosnow.app.ui.login.AuthViewModel
-import com.gosnow.app.ui.login.EmailAuthScreen
+import com.gosnow.app.ui.login.PhoneLoginScreen
 import com.gosnow.app.ui.login.TermsScreen
 import com.gosnow.app.ui.login.WelcomeAuthIntroScreen
 import com.gosnow.app.ui.record.RecordRoute
@@ -111,18 +111,17 @@ fun GoSnowApp() {
         composable(WELCOME_AUTH_ROUTE) {
             WelcomeAuthIntroScreen(
                 isCheckingSession = uiState.isCheckingSession,
-                onStartEmailLogin = { authNavController.navigate(PHONE_LOGIN_ROUTE) },
+                onStartPhoneLogin = { authNavController.navigate(PHONE_LOGIN_ROUTE) },
                 onTermsClick = { authNavController.navigate(TERMS_ROUTE) }
             )
         }
         composable(PHONE_LOGIN_ROUTE) {
-            EmailAuthScreen(
+            PhoneLoginScreen(
                 uiState = uiState,
-                onEmailChange = authViewModel::onEmailChange,
-                onPasswordChange = authViewModel::onPasswordChange,
-                onConfirmPasswordChange = authViewModel::onConfirmPasswordChange,
-                onSubmit = authViewModel::submit,
-                onSwitchMode = authViewModel::switchMode,
+                onPhoneChange = authViewModel::onPhoneChange,
+                onVerificationCodeChange = authViewModel::onVerificationCodeChange,
+                onSendCode = authViewModel::sendCode,
+                onLoginClick = authViewModel::verifyCodeAndLogin,
                 onBackClick = { authNavController.popBackStack() },
                 onTermsClick = { authNavController.navigate(TERMS_ROUTE) }
             )

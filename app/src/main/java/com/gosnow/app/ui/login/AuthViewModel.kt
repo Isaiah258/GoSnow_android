@@ -11,26 +11,24 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class AuthMode { LOGIN, REGISTER }
-
-data class AuthUiState(
-    val email: String = "",
-    val password: String = "",
-    val confirmPassword: String = "",
-    val isLoading: Boolean = false,
+data class LoginUiState(
+    val phoneNumber: String = "",
+    val verificationCode: String = "",
+    val isSendingCode: Boolean = false,
+    val codeSent: Boolean = false,
+    val isVerifyingCode: Boolean = false,
     val isLoggedIn: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
-    val isCheckingSession: Boolean = true,
-    val authMode: AuthMode = AuthMode.LOGIN
+    val isCheckingSession: Boolean = true
 )
 
 class AuthViewModel(
     private val repository: AuthRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(AuthUiState())
-    val uiState: StateFlow<AuthUiState> = _uiState
+    private val _uiState = MutableStateFlow(LoginUiState())
+    val uiState: StateFlow<LoginUiState> = _uiState
 
     init {
         checkExistingSession()
@@ -38,10 +36,10 @@ class AuthViewModel(
 
     private fun checkExistingSession() {
         viewModelScope.launch {
-            val hasSession = repository.hasActiveSession().getOrNull() == true
+            val user = repository.currentUser().getOrNull()
             _uiState.update {
                 it.copy(
-                    isLoggedIn = hasSession,
+                    isLoggedIn = user != null,
                     isCheckingSession = false,
                     errorMessage = null,
                     successMessage = null
@@ -50,79 +48,81 @@ class AuthViewModel(
         }
     }
 
-    fun onEmailChange(value: String) {
-        _uiState.update { it.copy(email = value.trim(), errorMessage = null, successMessage = null) }
+    fun onPhoneChange(value: String) {
+        _uiState.update { it.copy(phoneNumber = value, errorMessage = null, successMessage = null) }
     }
 
-    fun onPasswordChange(value: String) {
-        _uiState.update { it.copy(password = value, errorMessage = null, successMessage = null) }
+    fun onVerificationCodeChange(value: String) {
+        _uiState.update { it.copy(verificationCode = value, errorMessage = null, successMessage = null) }
     }
 
-    fun onConfirmPasswordChange(value: String) {
-        _uiState.update { it.copy(confirmPassword = value, errorMessage = null, successMessage = null) }
-    }
-
-    fun switchMode(mode: AuthMode) {
-        _uiState.update {
-            it.copy(
-                authMode = mode,
-                errorMessage = null,
-                successMessage = null
-            )
-        }
-    }
-
-    fun submit() {
-        val state = _uiState.value
-        val email = state.email.trim()
-        val password = state.password
-
-        if (email.isBlank() || !email.contains("@")) {
-            _uiState.update { it.copy(errorMessage = "请输入有效的邮箱地址") }
-            return
-        }
-
-        if (password.length < 6) {
-            _uiState.update { it.copy(errorMessage = "密码长度至少 6 位") }
-            return
-        }
-
-        if (state.authMode == AuthMode.REGISTER && password != state.confirmPassword) {
-            _uiState.update { it.copy(errorMessage = "两次输入的密码不一致") }
+    fun sendCode() {
+        val normalizedPhone = normalizePhoneNumber(_uiState.value.phoneNumber)
+        if (normalizedPhone == null) {
+            _uiState.update { it.copy(errorMessage = "请输入有效的手机号（仅支持中国大陆 11 位手机号）") }
             return
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            val result = if (state.authMode == AuthMode.LOGIN) {
-                repository.signInWithEmail(email, password)
-            } else {
-                repository.signUpWithEmail(email, password)
-            }
-
-            result.onSuccess {
-                handleAuthSuccess(state.authMode)
-            }.onFailure { throwable ->
-                _uiState.update {
-                    it.copy(
-                        errorMessage = throwable.message ?: "操作失败，请稍后重试",
-                        isLoading = false,
-                        isLoggedIn = false
-                    )
+            _uiState.update { it.copy(isSendingCode = true, errorMessage = null, successMessage = null) }
+            repository.sendOtpToPhone(normalizedPhone)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            isSendingCode = false,
+                            codeSent = true,
+                            successMessage = "验证码已发送，请查收",
+                            errorMessage = null
+                        )
+                    }
                 }
-            }
+                .onFailure { throwable ->
+                    _uiState.update {
+                        it.copy(
+                            isSendingCode = false,
+                            codeSent = false,
+                            errorMessage = throwable.message ?: "验证码发送失败，请稍后重试"
+                        )
+                    }
+                }
         }
     }
 
-    private suspend fun handleAuthSuccess(mode: AuthMode) {
-        val user = repository.currentUser().getOrNull()
-        _uiState.update {
-            it.copy(
-                isLoading = false,
-                isLoggedIn = user != null,
-                successMessage = if (mode == AuthMode.REGISTER) "注册成功，已登录" else "登录成功",
-                errorMessage = null
-            )
+    fun verifyCodeAndLogin() {
+        val normalizedPhone = normalizePhoneNumber(_uiState.value.phoneNumber)
+        if (normalizedPhone == null) {
+            _uiState.update { it.copy(errorMessage = "请输入有效的手机号") }
+            return
+        }
+
+        val codeDigits = _uiState.value.verificationCode.filter { it.isDigit() }
+        if (codeDigits.length != 6) {
+            _uiState.update { it.copy(errorMessage = "请输入短信中的 6 位验证码") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isVerifyingCode = true, errorMessage = null, successMessage = null) }
+            repository.verifyOtpAndLogin(normalizedPhone, codeDigits)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            isVerifyingCode = false,
+                            isLoggedIn = true,
+                            successMessage = "登录成功",
+                            errorMessage = null
+                        )
+                    }
+                }
+                .onFailure { throwable ->
+                    _uiState.update {
+                        it.copy(
+                            isVerifyingCode = false,
+                            isLoggedIn = false,
+                            errorMessage = throwable.message ?: "登录失败，请稍后重试"
+                        )
+                    }
+                }
         }
     }
 
@@ -130,15 +130,24 @@ class AuthViewModel(
         viewModelScope.launch {
             repository.signOut()
             _uiState.update {
-                it.copy(
-                    isLoggedIn = false,
-                    email = "",
-                    password = "",
-                    confirmPassword = "",
-                    errorMessage = null,
-                    successMessage = null
+                LoginUiState(
+                    isCheckingSession = false
                 )
             }
+        }
+    }
+
+    private fun normalizePhoneNumber(raw: String): String? {
+        val trimmed = raw.trim()
+        if (trimmed.isBlank()) return null
+
+        val digitsOnly = trimmed.filter { it.isDigit() }
+
+        return when {
+            trimmed.startsWith("+") && digitsOnly.length in 10..15 -> trimmed
+            digitsOnly.length == 11 -> "+86$digitsOnly"
+            digitsOnly.length in 10..15 -> "+$digitsOnly"
+            else -> null
         }
     }
 
