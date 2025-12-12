@@ -58,6 +58,14 @@ import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.DownhillSkiing
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.RadioButtonChecked
+// 其他 import 下面加：
+import coil.compose.AsyncImage
+import com.gosnow.app.datasupabase.CurrentUserStore
+import com.gosnow.app.datasupabase.CurrentUserProfile
+
+
+import androidx.compose.runtime.collectAsState
+
 import kotlin.math.abs
 
 /**
@@ -108,6 +116,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentProfile by CurrentUserStore.profile.collectAsState()
 
     Scaffold(
         modifier = modifier
@@ -119,7 +128,12 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
         ) {
-            HeaderSection(onAvatarClick = onAvatarClick)
+            // ✅ 这里把 profile 传进去
+            HeaderSection(
+                profile = currentProfile,
+                onAvatarClick = onAvatarClick
+            )
+
             Spacer(modifier = Modifier.height(20.dp))
             TodayHeroCard(uiState)
             Spacer(modifier = Modifier.height(24.dp))
@@ -134,9 +148,9 @@ fun HomeScreen(
 }
 
 /* ------------------------ Header ------------------------ */
-
 @Composable
 private fun HeaderSection(
+    profile: CurrentUserProfile?,
     onAvatarClick: () -> Unit
 ) {
     Row(
@@ -155,7 +169,7 @@ private fun HeaderSection(
             color = Color(0xFF111111)
         )
 
-        // 右上角头像：可点击，进入个人 / 设置页
+        // 右上角头像：优先用远程头像，其次用昵称首字母，最后用 G
         Box(
             modifier = Modifier
                 .size(44.dp)
@@ -164,12 +178,34 @@ private fun HeaderSection(
                 .clickable { onAvatarClick() },
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "G",
-                color = Color.White,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            when {
+                !profile?.avatarUrl.isNullOrBlank() -> {
+                    AsyncImage(
+                        model = profile!!.avatarUrl,
+                        contentDescription = "头像",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                !profile?.userName.isNullOrBlank() -> {
+                    val initial = profile!!.userName.first().uppercaseChar().toString()
+                    Text(
+                        text = initial,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                else -> {
+                    Text(
+                        text = "G",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }

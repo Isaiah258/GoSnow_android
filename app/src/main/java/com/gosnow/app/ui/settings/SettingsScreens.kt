@@ -73,8 +73,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 
-import com.gosnow.app.datasupabase.ProfileRepository
 
+import com.gosnow.app.datasupabase.ProfileRepository
+import com.gosnow.app.datasupabase.CurrentUserStore
 import com.gosnow.app.util.loadAndCompressImage
 import kotlinx.coroutines.launch
 
@@ -788,16 +789,20 @@ fun EditProfileScreen(
                                         loadAndCompressImage(context, uri)
                                     }
 
-
-                                    // 调用 ProfileRepository 更新
+                                    // 调用 ProfileRepository 更新 Supabase
                                     val newAvatarUrl = ProfileRepository.updateProfile(
                                         nickname = trimmed,
                                         avatarBytes = avatarBytes,
                                         currentAvatarUrl = avatarUrl
                                     )
 
+                                    // ✅ 本地也更新一份，避免重新打网络
+                                    CurrentUserStore.updateLocalProfile(
+                                        newName = trimmed,
+                                        newAvatarUrl = newAvatarUrl
+                                    )
 
-                                    // 可以在这里把新名字传给上层
+                                    // 如果你外层还想拿到新昵称，可以保留原来的回调
                                     onSaveClick(trimmed)
 
                                     snackbarHostState.showSnackbar("已保存")
@@ -811,6 +816,7 @@ fun EditProfileScreen(
                                     isSaving = false
                                 }
                             }
+
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),

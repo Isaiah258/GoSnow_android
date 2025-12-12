@@ -1,5 +1,6 @@
 package com.gosnow.app.data.auth
 
+import com.gosnow.app.datasupabase.CurrentUserStore
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.user.UserInfo
@@ -22,6 +23,8 @@ class AuthRepository(private val supabaseClient: SupabaseClient) {
             token = code,
             type = OtpType.Phone.SMS         // 关键：这里要传 type，见下面说明
         )
+
+        CurrentUserStore.refreshFromServer()
     }.map { }
 
     suspend fun signOut(): Result<Unit> = runCatching {
