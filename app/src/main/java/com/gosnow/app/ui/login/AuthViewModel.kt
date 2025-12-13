@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.gosnow.app.data.auth.AuthRepository
+import com.gosnow.app.datasupabase.CurrentUserStore
 import com.gosnow.app.datasupabase.SupabaseClientProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,10 +37,15 @@ class AuthViewModel(
 
     private fun checkExistingSession() {
         viewModelScope.launch {
-            val user = repository.currentUser().getOrNull()
+            val hasSession = repository.hasActiveSession().getOrNull() == true
+
+            if (hasSession) {
+                runCatching { CurrentUserStore.refreshFromServer() }
+            }
+
             _uiState.update {
                 it.copy(
-                    isLoggedIn = user != null,
+                    isLoggedIn = hasSession,
                     isCheckingSession = false,
                     errorMessage = null,
                     successMessage = null
@@ -47,6 +53,8 @@ class AuthViewModel(
             }
         }
     }
+
+
 
     fun onPhoneChange(value: String) {
         _uiState.update { it.copy(phoneNumber = value, errorMessage = null, successMessage = null) }
@@ -129,13 +137,11 @@ class AuthViewModel(
     fun logout() {
         viewModelScope.launch {
             repository.signOut()
-            _uiState.update {
-                LoginUiState(
-                    isCheckingSession = false
-                )
-            }
+            CurrentUserStore.clear()
+            _uiState.update { LoginUiState(isCheckingSession = false) }
         }
     }
+
 
     private fun normalizePhoneNumber(raw: String): String? {
         val trimmed = raw.trim()

@@ -47,10 +47,16 @@ import com.gosnow.app.ui.settings.AccountPrivacyScreen
 import com.gosnow.app.ui.settings.FeedbackScreen
 import com.gosnow.app.ui.settings.AboutScreen
 import com.gosnow.app.ui.settings.EditProfileScreen
-import com.gosnow.app.ui.settings.ROUTE_ACCOUNT_PRIVACY
+
 import com.gosnow.app.ui.settings.ROUTE_FEEDBACK
 import com.gosnow.app.ui.settings.ROUTE_ABOUT
 import com.gosnow.app.ui.settings.ROUTE_EDIT_PROFILE
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.ui.platform.LocalContext
+import com.gosnow.app.ui.settings.ROUTE_ACCOUNT_PRIVACY
+
 
 private const val WELCOME_AUTH_ROUTE = "welcome_auth"
 private const val PHONE_LOGIN_ROUTE = "phone_login"
@@ -248,47 +254,43 @@ fun GoSnowMainApp(
             }
 
             /* ---------------- 设置主页面 ---------------- */
-            composable(PROFILE_ROUTE) {
-                // TODO: 这里以后可以从 DataStore / Supabase 拿真实昵称和头像
-                val userName = "滑雪爱好者"
-                val avatarUrl: String? = null
 
+            composable(PROFILE_ROUTE) {
                 SettingsScreen(
-                    userName = userName,
-                    avatarUrl = avatarUrl,
                     onBackClick = { navController.popBackStack() },
                     onEditProfileClick = { navController.navigate(ROUTE_EDIT_PROFILE) },
-                    onAccountPrivacyClick = { navController.navigate(ROUTE_ACCOUNT_PRIVACY) },
                     onFeedbackClick = { navController.navigate(ROUTE_FEEDBACK) },
+                    onAccountPrivacyClick = { navController.navigate(ROUTE_ACCOUNT_PRIVACY) },
                     onAboutClick = { navController.navigate(ROUTE_ABOUT) },
                     onLogoutClick = {
-                        // 退出登录后直接回到登录流程
                         onLogout()
                     }
                 )
             }
 
+
             /* ---------------- 设置子页面：账户与隐私 ---------------- */
             composable(ROUTE_ACCOUNT_PRIVACY) {
+                val context = LocalContext.current
                 AccountPrivacyScreen(
                     onBackClick = { navController.popBackStack() },
-                    onDeleteAccountClick = {
-                        // TODO: 调用真正的销号逻辑
-                    },
                     onOpenSystemSettingsClick = {
-                        // TODO: 用 Intent 打开系统设置（需要 LocalContext）
+                        val intent = Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.fromParts("package", context.packageName, null)
+                        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
                     }
                 )
             }
 
+
             /* ---------------- 设置子页面：用户反馈 ---------------- */
             composable(ROUTE_FEEDBACK) {
                 FeedbackScreen(
-                    onBackClick = { navController.popBackStack() },
-                    onSubmitClick = { title, content ->
-                        // TODO: 把反馈发到后端 / 邮箱
-                    }
+                    onBackClick = { navController.popBackStack() }
                 )
+
             }
 
             /* ---------------- 设置子页面：关于我们 ---------------- */

@@ -37,10 +37,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.gosnow.app.ui.snowcircle.model.Post
 import com.gosnow.app.ui.snowcircle.model.User
@@ -64,36 +66,34 @@ fun PostCard(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = post.content,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 4,
+            style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp),
+            maxLines = 6,
             overflow = TextOverflow.Ellipsis
         )
+
         if (post.imageUrls.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
             ImageGrid(urls = post.imageUrls, onImageClick = onImageClick)
         }
         Spacer(modifier = Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            post.resortName?.let {
-                ResortTag(name = it)
-            }
+            post.resortName?.let { ResortTag(name = it) }
             Spacer(modifier = Modifier.weight(1f))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onLikeClick) {
-                    Icon(
-                        imageVector = if (post.isLikedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                        contentDescription = "赞",
-                        tint = if (post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Text(text = "${post.likeCount}")
-                Spacer(modifier = Modifier.width(12.dp))
-                IconButton(onClick = onCommentClick) {
-                    Icon(imageVector = Icons.Outlined.Comment, contentDescription = "评论")
-                }
-                Text(text = "${post.commentCount}")
-            }
+
+            ActionPill(
+                icon = if (post.isLikedByMe) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                count = post.likeCount,
+                selected = post.isLikedByMe,
+                onClick = onLikeClick
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            ActionPill(
+                icon = Icons.Outlined.Comment,
+                count = post.commentCount,
+                onClick = onCommentClick
+            )
         }
+
     }
 }
 
@@ -344,6 +344,35 @@ private fun ManyImages(urls: List<String>, onClick: (Int) -> Unit) {
                 }
             }
         }
+    }
+}
+@Composable
+private fun ActionPill(
+    icon: ImageVector,
+    count: Int,
+    selected: Boolean = false,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp)   // ✅ 关键：视觉变小
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = count.toString(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

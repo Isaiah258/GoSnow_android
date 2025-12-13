@@ -1,5 +1,9 @@
 package com.gosnow.app.ui.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,8 +33,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
@@ -43,11 +47,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,39 +62,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.gosnow.app.ui.theme.GosnowTheme
-import kotlinx.coroutines.launch
-// 顶部 import 里补充这些：
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContract
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
-
-
-import com.gosnow.app.datasupabase.ProfileRepository
 import com.gosnow.app.datasupabase.CurrentUserStore
+import com.gosnow.app.datasupabase.FeedbackRepository
+import com.gosnow.app.datasupabase.ProfileRepository
+import com.gosnow.app.ui.theme.GosnowTheme
 import com.gosnow.app.util.loadAndCompressImage
 import kotlinx.coroutines.launch
 
-
 const val ROUTE_SETTINGS = "settings"
-const val ROUTE_ACCOUNT_PRIVACY = "settings_account_privacy"
+
 const val ROUTE_FEEDBACK = "settings_feedback"
 const val ROUTE_ABOUT = "settings_about"
 const val ROUTE_EDIT_PROFILE = "settings_edit_profile"
 
+const val ROUTE_ACCOUNT_PRIVACY = "settings_account_privacy"
+
+
+/* ---------------- 设置主页 ---------------- */
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    userName: String,
-    avatarUrl: String?,
     onBackClick: () -> Unit,
     onEditProfileClick: () -> Unit,
     onAccountPrivacyClick: () -> Unit,
@@ -100,6 +98,9 @@ fun SettingsScreen(
 ) {
     val scrollState = rememberScrollState()
 
+    val currentProfile by CurrentUserStore.profile.collectAsState()
+    val userName = currentProfile?.userName ?: "雪友"
+    val avatarUrl = currentProfile?.avatarUrl
 
     Scaffold(
         topBar = {
@@ -128,7 +129,6 @@ fun SettingsScreen(
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 顶部用户信息
             UserInfoCard(
                 userName = userName,
                 avatarUrl = avatarUrl,
@@ -143,15 +143,12 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
 
-            // 通用设置分组
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 SettingsItemRow(
@@ -179,15 +176,12 @@ fun SettingsScreen(
                 )
             }
 
-            // 退出登录分组
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 SettingsItemRow(
@@ -203,8 +197,6 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(20.dp))
         }
     }
-
-
 }
 
 @Composable
@@ -216,18 +208,14 @@ private fun UserInfoCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Row(
-            modifier = Modifier
-                .padding(20.dp),
+            modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-// 简单的首字母头像占位
             Box(
                 modifier = Modifier
                     .size(64.dp)
@@ -235,14 +223,25 @@ private fun UserInfoCard(
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
-                val initial = userName.firstOrNull()?.uppercaseChar()?.toString() ?: "G"
-                Text(
-                    text = initial,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
+                when {
+                    !avatarUrl.isNullOrBlank() -> {
+                        AsyncImage(
+                            model = avatarUrl,
+                            contentDescription = "头像",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
 
+                    else -> {
+                        val initial = userName.firstOrNull()?.uppercaseChar()?.toString() ?: "雪"
+                        Text(
+                            text = initial,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.width(14.dp))
 
@@ -277,8 +276,6 @@ private fun UserInfoCard(
             }
         }
     }
-
-
 }
 
 @Composable
@@ -309,7 +306,6 @@ private fun SettingsItemRow(
             Icon(imageVector = icon, contentDescription = null, tint = iconTint)
         }
 
-
         Spacer(modifier = Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
@@ -334,17 +330,14 @@ private fun SettingsItemRow(
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
-
-
 }
 
-/* ------------ 子页面：账户与隐私 ------------ */
+/* ---------------- 子页面：账户与隐私 ---------------- */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountPrivacyScreen(
     onBackClick: () -> Unit,
-    onDeleteAccountClick: () -> Unit,
     onOpenSystemSettingsClick: () -> Unit
 ) {
     Scaffold(
@@ -372,31 +365,12 @@ fun AccountPrivacyScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = "管理你的账户安全、隐私与权限，确保信息安全并按需控制应用授权。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                SettingsItemRow(
-                    icon = Icons.Filled.DeleteForever,
-                    iconBackground = MaterialTheme.colorScheme.errorContainer,
-                    iconTint = MaterialTheme.colorScheme.onErrorContainer,
-                    title = "注销账户",
-                    titleColor = MaterialTheme.colorScheme.error,
-                    subtitle = "注销后数据将按照法律要求处理",
-                    onClick = onDeleteAccountClick
-                )
-                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 SettingsItemRow(
                     icon = Icons.Filled.Lock,
                     iconBackground = MaterialTheme.colorScheme.primaryContainer,
@@ -406,33 +380,24 @@ fun AccountPrivacyScreen(
                     onClick = onOpenSystemSettingsClick
                 )
             }
-
-            Text(
-                text = "提示：Android 可使用 Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS) 跳转到应用详情页，在外层实现具体逻辑。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
-
-
 }
 
-/* ------------ 子页面：反馈 ------------ */
+
+/* ---------------- 子页面：用户反馈（写入 Supabase FeedBackForUs） ---------------- */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedbackScreen(
-    onBackClick: () -> Unit,
-    onSubmitClick: (String, String) -> Unit
+    onBackClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
     var contact by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
-
+    var isSubmitting by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -461,21 +426,13 @@ fun FeedbackScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "感谢你的反馈！请尽可能详细地描述问题或建议，方便我们快速优化体验。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
 
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -485,19 +442,14 @@ fun FeedbackScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("反馈标题（可选）") }
-                    )
-                    OutlinedTextField(
                         value = content,
                         onValueChange = { content = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("请描述你遇到的问题或建议…") },
-                        minLines = 5
+                        minLines = 6,
+                        enabled = !isSubmitting
                     )
+
                     OutlinedTextField(
                         value = contact,
                         onValueChange = { contact = it },
@@ -505,23 +457,42 @@ fun FeedbackScreen(
                         singleLine = true,
                         label = { Text("联系方式（可选）") },
                         leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Filled.Email,
-                                contentDescription = null
-                            )
-                        }
+                            Icon(imageVector = Icons.Filled.Email, contentDescription = null)
+                        },
+                        enabled = !isSubmitting
                     )
+
                     Button(
                         onClick = {
-                            onSubmitClick(title, content)
+                            val trimmedContent = content.trim()
+                            if (trimmedContent.isEmpty()) {
+                                scope.launch { snackbarHostState.showSnackbar("内容不能为空") }
+                                return@Button
+                            }
+
                             scope.launch {
-                                snackbarHostState.showSnackbar("反馈已提交，我们会尽快处理！")
+                                try {
+                                    isSubmitting = true
+                                    FeedbackRepository.submitFeedback(
+                                        content = trimmedContent,
+                                        contact = contact
+                                    )
+                                    content = ""
+                                    contact = ""
+                                    snackbarHostState.showSnackbar("反馈已提交，感谢你！")
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                    snackbarHostState.showSnackbar("提交失败：${e.message ?: "请稍后重试"}")
+                                } finally {
+                                    isSubmitting = false
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
+                        shape = RoundedCornerShape(14.dp),
+                        enabled = !isSubmitting
                     ) {
-                        Text(text = "提交反馈")
+                        Text(text = if (isSubmitting) "提交中…" else "提交反馈")
                     }
                 }
             }
@@ -529,11 +500,9 @@ fun FeedbackScreen(
             Spacer(modifier = Modifier.height(20.dp))
         }
     }
-
-
 }
 
-/* ------------ 子页面：关于 ------------ */
+/* ---------------- 子页面：关于我们（只保留两项） ---------------- */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -570,40 +539,7 @@ fun AboutScreen(
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "GoSnow",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        text = "版本 v1.0.0",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Text(
-                        text = "一款陪你记录雪场足迹、分享滑雪故事的社区应用。",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 SettingsItemRow(
@@ -619,30 +555,21 @@ fun AboutScreen(
                     iconBackground = MaterialTheme.colorScheme.secondaryContainer,
                     iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                     title = "隐私政策",
-                    subtitle = "可复用登录流程中的条款页面逻辑",
                     onClick = onPrivacyPolicyClick
                 )
             }
-
-            Text(
-                text = "隐私政策可复用登录流程中的 Terms/Privacy 页面，这里只负责导航。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
-
-
 }
 
-/* ------------ 子页面：编辑资料 ------------ */
+/* ---------------- 子页面：编辑资料（保持你现有逻辑） ---------------- */
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileScreen(
     currentName: String,
     avatarUrl: String?,
     onBackClick: () -> Unit,
-    // 如果你后面希望把新昵称/头像回传给上层，可以把 onSaveClick 换成 onProfileUpdated: (String, String?) -> Unit
     onSaveClick: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -650,25 +577,17 @@ fun EditProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    // 新增：选中的头像 Uri（本地）
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-
-    // 保存中状态
     var isSaving by remember { mutableStateOf(false) }
 
-
-    // 相册选择器（只选择图片）
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         selectedImageUri = uri
     }
 
-    // 是否有改动：昵称 or 头像
     val hasChanges by remember(name, selectedImageUri) {
-        mutableStateOf(
-            name.trim() != currentName.trim() || selectedImageUri != null
-        )
+        mutableStateOf(name.trim() != currentName.trim() || selectedImageUri != null)
     }
 
     Scaffold(
@@ -701,9 +620,7 @@ fun EditProfileScreen(
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -713,7 +630,6 @@ fun EditProfileScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 头像区域：优先显示本地 Uri，其次远程 avatarUrl，最后首字母占位
                     Box(
                         modifier = Modifier
                             .size(96.dp)
@@ -739,12 +655,10 @@ fun EditProfileScreen(
                             }
 
                             else -> {
-                                val initial = name.firstOrNull()?.uppercaseChar()?.toString() ?: "G"
+                                val initial = name.firstOrNull()?.uppercaseChar()?.toString() ?: "雪"
                                 Text(
                                     text = initial,
-                                    style = MaterialTheme.typography.headlineMedium.copy(
-                                        fontWeight = FontWeight.Bold
-                                    ),
+                                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
@@ -767,16 +681,15 @@ fun EditProfileScreen(
                         onValueChange = { name = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("昵称") },
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !isSaving
                     )
 
                     Button(
                         onClick = {
                             val trimmed = name.trim()
                             if (trimmed.isEmpty()) {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("昵称不能为空")
-                                }
+                                scope.launch { snackbarHostState.showSnackbar("昵称不能为空") }
                                 return@Button
                             }
 
@@ -784,39 +697,31 @@ fun EditProfileScreen(
                                 try {
                                     isSaving = true
 
-                                    // 压缩头像（如果有选新的）
                                     val avatarBytes = selectedImageUri?.let { uri ->
                                         loadAndCompressImage(context, uri)
                                     }
 
-                                    // 调用 ProfileRepository 更新 Supabase
                                     val newAvatarUrl = ProfileRepository.updateProfile(
                                         nickname = trimmed,
                                         avatarBytes = avatarBytes,
                                         currentAvatarUrl = avatarUrl
                                     )
 
-                                    // ✅ 本地也更新一份，避免重新打网络
                                     CurrentUserStore.updateLocalProfile(
                                         newName = trimmed,
                                         newAvatarUrl = newAvatarUrl
                                     )
 
-                                    // 如果你外层还想拿到新昵称，可以保留原来的回调
                                     onSaveClick(trimmed)
-
                                     snackbarHostState.showSnackbar("已保存")
                                     onBackClick()
                                 } catch (e: Exception) {
                                     e.printStackTrace()
-                                    snackbarHostState.showSnackbar(
-                                        "保存失败：${e.message ?: "请稍后重试"}"
-                                    )
+                                    snackbarHostState.showSnackbar("保存失败：${e.message ?: "请稍后重试"}")
                                 } finally {
                                     isSaving = false
                                 }
                             }
-
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
@@ -830,70 +735,19 @@ fun EditProfileScreen(
     }
 }
 
-
-/* ------------ 预览 ------------ */
+/* ---------------- Preview ---------------- */
 
 @Preview(showBackground = true)
 @Composable
 private fun SettingsScreenPreview() {
     GosnowTheme {
         SettingsScreen(
-            userName = "ifyoulikewinter",
-            avatarUrl = null,
             onBackClick = {},
             onEditProfileClick = {},
             onAccountPrivacyClick = {},
             onFeedbackClick = {},
             onAboutClick = {},
             onLogoutClick = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun AccountPrivacyScreenPreview() {
-    GosnowTheme {
-        AccountPrivacyScreen(
-            onBackClick = {},
-            onDeleteAccountClick = {},
-            onOpenSystemSettingsClick = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun FeedbackScreenPreview() {
-    GosnowTheme {
-        FeedbackScreen(
-            onBackClick = {},
-            onSubmitClick = { _, _ -> }
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun AboutScreenPreview() {
-    GosnowTheme {
-        AboutScreen(
-            onBackClick = {},
-            onCommunityGuidelinesClick = {},
-            onPrivacyPolicyClick = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun EditProfileScreenPreview() {
-    GosnowTheme {
-        EditProfileScreen(
-            currentName = "滑雪爱好者",
-            avatarUrl = null,
-            onBackClick = {},
-            onSaveClick = {}
         )
     }
 }

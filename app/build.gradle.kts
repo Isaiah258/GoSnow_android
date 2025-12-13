@@ -108,6 +108,8 @@ dependencies {
     // 4. 如果你要用数据库和存储，也一起先加上没问题
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:storage-kt")
+
+
     implementation(libs.androidx.room.ktx)
     // 以后需要再加：
     // implementation("io.github.jan-tennert.supabase:realtime-kt")

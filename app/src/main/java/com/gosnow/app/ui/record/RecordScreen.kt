@@ -50,6 +50,21 @@ fun RecordRoute(
     val activity = view.context as? Activity
     val window = activity?.window
     val context = LocalContext.current
+    var hasLocationPermission by remember { mutableStateOf(false) }
+
+
+    fun checkPermission(): Boolean {
+        val fine = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        val coarse = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        return fine || coarse
+    }
+
 
     // 1. 状态栏 / 导航栏改成黑色
     DisposableEffect(Unit) {
@@ -79,20 +94,14 @@ fun RecordRoute(
     // 2. 运行时请求定位权限
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* 这里你暂时不用管结果，SystemLocationService 会自己根据权限情况工作 */ }
+    ) { _ ->
+        // ✅ 授权回调后立刻刷新 state，让 MapView 重新启用蓝点
+        hasLocationPermission = checkPermission()
+    }
 
     LaunchedEffect(Unit) {
-        val fineGranted = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-        val coarseGranted = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-        if (!fineGranted && !coarseGranted) {
+        hasLocationPermission = checkPermission()
+        if (!hasLocationPermission) {
             permissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -117,14 +126,16 @@ fun RecordRoute(
 
     RecordScreen(
         viewModel = viewModel,
-        onBack = onBack
+        onBack = onBack,
+        hasLocationPermission = hasLocationPermission
     )
 }
 
 @Composable
 fun RecordScreen(
     viewModel: RecordingViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit ,
+    hasLocationPermission: Boolean
 ) {
     val durationText = viewModel.durationText
     val distanceKm = viewModel.distanceKm
@@ -137,7 +148,8 @@ fun RecordScreen(
     ) {
         // 背景 Mapbox 地图
         RecordingMapView(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            hasLocationPermission = hasLocationPermission
         )
 
         // 顶部返回按钮
@@ -266,58 +278,71 @@ fun RecordScreen(
         }
     }
 }
-
 @Composable
 private fun RecordingMapView(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hasLocationPermission: Boolean
 ) {
     val context = LocalContext.current
 
     AndroidView(
         modifier = modifier,
-        factory = { ctx: Context ->
+        factory = { ctx ->
             MapView(ctx).apply {
-                val mapboxMap = this.getMapboxMap()
+                val mapboxMap = getMapboxMap()
+                val locationPlugin = location
 
-                // 默认中心：先给个你常用雪场的经纬度（这里随便写了一组，记得改成自己的）
-                val defaultCenter = Point.fromLngLat(
-                    138.5, // lng
-                    36.7   // lat
-                )
-
-                // 打开位置组件（蓝点）
-                val locationPlugin = this.location
-                locationPlugin.updateSettings {
-                    enabled = true
-                    pulsingEnabled = true
+                // 先加 listener（后授权也能生效）
+                locationPlugin.addOnIndicatorPositionChangedListener { point ->
+                    // 只更新 center，不强制把 zoom 锁死在很近
+                    mapboxMap.setCamera(
+                        CameraOptions.Builder()
+                            .center(point)
+                            .build()
+                    )
                 }
 
-                // 样式：你的自定义 contour style
                 mapboxMap.loadStyleUri(
                     "mapbox://styles/gosnow/cmikjh06p00ys01s68fmy9nor"
                 ) {
-                    // 初始相机
+                    // ✅ 1) 先给一个更合理的默认 zoom（别 17.5 起步）
                     mapboxMap.setCamera(
                         CameraOptions.Builder()
-                            .center(defaultCenter)
-                            .zoom(17.5) // 越大越近，比例尺数值越小
+                            .center(Point.fromLngLat(138.5, 36.7))
+                            .zoom(14.5) // 14~15 更像“看雪场”，17+ 是“贴脸看一小块”
                             .build()
                     )
 
-                    // 让相机跟随蓝点（用户移动时，始终居中）
-                    locationPlugin.addOnIndicatorPositionChangedListener { point ->
-                        mapboxMap.setCamera(
-                            CameraOptions.Builder()
-                                .center(point)
-                                .zoom(17.5)
-                                .build()
-                        )
+                    // ✅ 2) 授权后再开启蓝点
+                    locationPlugin.updateSettings {
+                        enabled = hasLocationPermission
+                        pulsingEnabled = hasLocationPermission
+                    }
+
+                    // ✅ 3) 如果有定位，跟随到当前位置，但别每次都强制 zoom=17.5
+                    if (hasLocationPermission) {
+                        locationPlugin.addOnIndicatorPositionChangedListener { point ->
+                            mapboxMap.setCamera(
+                                CameraOptions.Builder()
+                                    .center(point)
+                                    // 不写 zoom，就只更新 center（用户不会被“锁死在超近视野”）
+                                    .build()
+                            )
+                        }
                     }
                 }
+            }
+        },
+        update = { mapView ->
+            // Compose state 改变会走这里：权限从 false -> true 时立刻开蓝点
+            mapView.location.updateSettings {
+                enabled = hasLocationPermission
+                pulsingEnabled = hasLocationPermission
             }
         }
     )
 }
+
 
 @Composable
 private fun StatCard(

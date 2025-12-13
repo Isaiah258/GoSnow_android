@@ -29,13 +29,28 @@ import com.gosnow.app.ui.snowcircle.ui.notifications.NotificationsScreen
 import com.gosnow.app.ui.snowcircle.ui.notifications.NotificationsViewModel
 import com.gosnow.app.ui.snowcircle.ui.theme.SnowTheme
 import com.gosnow.app.ui.snowcircle.ui.viewer.ImageViewerScreen
+import androidx.compose.ui.platform.LocalContext
+import com.gosnow.app.datasupabase.SupabaseClientProvider
+import android.content.Context
+
+import com.gosnow.app.BuildConfig
+
+
+import com.gosnow.app.ui.snowcircle.data.supabase.SupabaseResortsCommentRepository
+import com.gosnow.app.ui.snowcircle.data.supabase.SupabaseResortsNotificationsRepository
+import com.gosnow.app.ui.snowcircle.data.supabase.SupabaseResortsPostRepository
+import com.gosnow.app.ui.snowcircle.model.User
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
 
 @Composable
 fun SnowApp() {
     SnowTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             val navController = rememberNavController()
-            val container = remember { SnowContainer() }
+            val appContext = LocalContext.current.applicationContext
+            val container = remember { SnowContainer(context = appContext, useMock = false) }
+
             NavHost(navController = navController, startDestination = "feed") {
                 composable("feed") {
                     val vm: FeedViewModel = viewModel(factory = container.factory { FeedViewModel(container.postRepository, container.notificationsRepository, container.currentUser.id) })
@@ -73,14 +88,50 @@ fun SnowApp() {
     }
 }
 
+
+
+
 class SnowContainer(
-    val postRepository: PostRepository = InMemoryPostRepository(),
-    val commentRepository: CommentRepository = InMemoryCommentRepository(),
-    val notificationsRepository: NotificationsRepository = InMemoryNotificationsRepository(),
-    val currentUser: com.gosnow.app.ui.snowcircle.model.User = currentUser()
+    context: Context,
+    private val useMock: Boolean = false
 ) {
+    private val appContext = context.applicationContext
+    private val supabase: SupabaseClient = SupabaseClientProvider.supabaseClient
+
+    private val authedUserId: String? = supabase.auth.currentUserOrNull()?.id
+
+    // 1) 当前用户：真实环境用 auth 的 uuid；mock 继续用你原来的 currentUser()
+    val currentUser: User =
+        if (useMock) currentUser()
+        else User(
+            id = authedUserId ?: error("未登录：supabase.auth.currentUserOrNull() == null"),
+            displayName = "我",
+            avatarUrl = null
+        )
+
+    // 2) Repository：mock / supabase 切换
+    val postRepository: PostRepository =
+        if (useMock) InMemoryPostRepository()
+        else SupabaseResortsPostRepository(
+            context = appContext,
+            supabase = supabase,
+            postMediaBucket = "post-media",
+            publicStorageBaseUrl = "${BuildConfig.SUPABASE_URL.trimEnd('/')}/storage/v1/object/public"
+        )
+
+    val commentRepository: CommentRepository =
+        if (useMock) InMemoryCommentRepository()
+        else SupabaseResortsCommentRepository(supabase)
+
+    val notificationsRepository: NotificationsRepository =
+        if (useMock) InMemoryNotificationsRepository()
+        else SupabaseResortsNotificationsRepository(supabase)
+
     fun <T : ViewModel> factory(create: () -> T): androidx.lifecycle.ViewModelProvider.Factory =
         object : androidx.lifecycle.ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T = create() as T
         }
 }
+
+
+

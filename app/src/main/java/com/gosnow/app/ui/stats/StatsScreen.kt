@@ -22,6 +22,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 // 和 SwiftUI 对齐的概念
 enum class StatsScope { WEEK, MONTH, SEASON }
@@ -46,49 +49,9 @@ data class StatsSummary(
 fun StatsScreen(
     modifier: Modifier = Modifier
 ) {
-    var scope by remember { mutableStateOf(StatsScope.WEEK) }
-    var metric by remember { mutableStateOf(StatsMetric.DURATION) }
-
-    // 示例数据：后面你接 ViewModel 的真实数据时，只需要替换这里
-    val samplePoints = remember(scope) {
-        when (scope) {
-            // 周视图：按星期一到星期日
-            StatsScope.WEEK -> listOf(
-                StatsPoint("一", 1.2f),
-                StatsPoint("二", 2.5f),
-                StatsPoint("三", 0f),
-                StatsPoint("四", 3.8f),
-                StatsPoint("五", 4.1f),
-                StatsPoint("六", 5.0f),
-                StatsPoint("日", 2.7f),
-            )
-
-            // ✅ 月视图：固定拆成 4 段，而不是 30 天 / 5 周
-            // 1–7 日、8–14 日、15–21 日、22–月底
-            StatsScope.MONTH -> listOf(
-                StatsPoint("1-7日", (0..6).random() + 0.5f),    // 示例：0.5 ~ 6.5 小时
-                StatsPoint("8-14日", (0..6).random() + 0.5f),
-                StatsPoint("15-21日", (0..6).random() + 0.5f),
-                StatsPoint("22-月底", (0..6).random() + 0.5f),
-            )
-
-            // 雪季：11 月 ~ 次年 4 月，按“月份”展示
-            StatsScope.SEASON -> {
-                val labels = listOf("11月", "12月", "1月", "2月", "3月", "4月")
-                labels.map { label ->
-                    StatsPoint(label, (0..20).random() / 2f) // 0 ~ 10 小时
-                }
-            }
-        }
-    }
-
-    val sampleSummary = remember {
-        StatsSummary(
-            totalDurationMin = 7 * 60 + 30,   // 7 小时 30 分钟
-            totalDistanceKm = 24.3f,
-            sessionsCount = 12
-        )
-    }
+    val context = LocalContext.current
+    val vm: StatsViewModel = viewModel(factory = StatsViewModel.provideFactory(context))
+    val ui by vm.uiState.collectAsState()
 
     Column(
         modifier = modifier
@@ -96,7 +59,6 @@ fun StatsScreen(
             .padding(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 标题
         Text(
             text = "活动",
             style = MaterialTheme.typography.headlineMedium.copy(
@@ -105,32 +67,28 @@ fun StatsScreen(
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
-        // 顶部：范围切换（周 / 月 / 雪季）
         ScopeSegmentedRow(
-            scope = scope,
-            onScopeChange = { scope = it },
+            scope = ui.scope,
+            onScopeChange = { vm.setScope(it) },
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
-        // 中间：图表区域 —— 现在只剩滑行时间 / 滑行里程两种，用柱状图表示
         SimpleBarChart(
-            points = samplePoints,
-            metric = metric,
+            points = ui.points,
+            metric = ui.metric,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(220.dp)
                 .padding(horizontal = 8.dp)
         )
 
-        // 摘要卡：滑行时间 / 滑行里程
         SummaryRow(
-            summary = sampleSummary,
-            metric = metric,
-            onMetricChange = { metric = it },
+            summary = ui.summary,
+            metric = ui.metric,
+            onMetricChange = { vm.setMetric(it) },
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
-        // 记录次数
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -145,7 +103,7 @@ fun StatsScreen(
             )
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = "${sampleSummary.sessionsCount} 次",
+                text = "${ui.summary.sessionsCount} 次",
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -153,7 +111,6 @@ fun StatsScreen(
         Spacer(modifier = Modifier.height(12.dp))
     }
 }
-
 /* ---------------- 顶部「周 / 月 / 雪季」选择 ---------------- */
 
 @Composable

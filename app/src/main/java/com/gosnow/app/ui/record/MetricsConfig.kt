@@ -3,7 +3,7 @@ package com.gosnow.app.recording.metrics
 data class MetricsConfig(
     // 精度过滤
     val maxHorizontalAccuracyM: Float = 30f,       // >30m 判为不可靠
-    val maxSpeedKmh: Double = 120.0,              // >120 km/h 视为异常
+    val maxSpeedKmh: Double = 150.0,              // >150 km/h 视为异常
     val minDtSec: Double = 0.2,                   // 相邻点最小时间间隔
 
     // 平滑

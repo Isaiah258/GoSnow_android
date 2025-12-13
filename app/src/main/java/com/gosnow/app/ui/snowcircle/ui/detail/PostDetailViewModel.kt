@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gosnow.app.ui.snowcircle.data.CommentRepository
 import com.gosnow.app.ui.snowcircle.data.PostRepository
-import com.gosnow.app.ui.snowcircle.data.currentUser
+
 import com.gosnow.app.ui.snowcircle.model.Comment
 import com.gosnow.app.ui.snowcircle.model.Post
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -77,7 +77,13 @@ class PostDetailViewModel(
 
     fun onSendComment(text: String, parentId: String?) {
         viewModelScope.launch {
-            val newComment = commentRepository.addComment(postId, text, parentId, currentUser())
+            val me = com.gosnow.app.ui.snowcircle.model.User(
+                id = currentUserId,
+                displayName = "我",
+                avatarUrl = null
+            )
+            val newComment = commentRepository.addComment(postId, text, parentId, me)
+
             val current = uiState.value.comments
             if (parentId == null) {
                 _uiState.update { it.copy(comments = current.copy(roots = listOf(newComment) + current.roots)) }
@@ -90,6 +96,7 @@ class PostDetailViewModel(
             _uiState.update { it.copy(replyTarget = null) }
         }
     }
+
 
     fun onDeleteComment(commentId: String) {
         viewModelScope.launch {

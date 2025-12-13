@@ -63,6 +63,21 @@ import coil.compose.AsyncImage
 import com.gosnow.app.datasupabase.CurrentUserStore
 import com.gosnow.app.datasupabase.CurrentUserProfile
 
+import android.content.Context
+
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.gosnow.app.ui.record.storage.FileSessionStore
+
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+
 
 import androidx.compose.runtime.collectAsState
 
@@ -78,21 +93,72 @@ data class HomeUiState(
     val daysOnSnow: Int = 0,
     val deltaVsYesterdayKm: Double? = null
 )
+class HomeViewModel(
+    private val store: FileSessionStore
+) : ViewModel() {
 
-/**
- * Demo view model that exposes static data for the Home screen.
- */
-class HomeViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(
-        HomeUiState(
-            todayDistanceKm = 12.4,
-            totalDistanceKm = 346.7,
-            totalDurationHours = 58.2,
-            daysOnSnow = 18,
-            deltaVsYesterdayKm = 2.3
-        )
-    )
+    private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState
+
+    init {
+        refresh()
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            val sessions = store.loadSessions()
+
+            val zone = ZoneId.systemDefault()
+            fun sessionDate(millis: Long): LocalDate =
+                Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+
+            val today = LocalDate.now(zone)
+            val yesterday = today.minusDays(1)
+
+            val todayDistance = sessions
+                .filter { sessionDate(it.startAtMillis) == today }
+                .sumOf { it.distanceKm }
+
+            val yesterdayDistance = sessions
+                .filter { sessionDate(it.startAtMillis) == yesterday }
+                .sumOf { it.distanceKm }
+
+            val totalDistance = sessions.sumOf { it.distanceKm }
+            val totalDurationHours = sessions.sumOf { it.durationSec }.toDouble() / 3600.0
+
+            val daysOnSnow = sessions
+                .map { sessionDate(it.startAtMillis) }
+                .distinct()
+                .size
+
+            val delta = if (sessions.any { sessionDate(it.startAtMillis) == yesterday }) {
+                todayDistance - yesterdayDistance
+            } else {
+                null
+            }
+
+            _uiState.update {
+                it.copy(
+                    todayDistanceKm = todayDistance,
+                    totalDistanceKm = totalDistance,
+                    totalDurationHours = totalDurationHours,
+                    daysOnSnow = daysOnSnow,
+                    deltaVsYesterdayKm = delta
+                )
+            }
+        }
+    }
+
+    companion object {
+        fun provideFactory(context: Context): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    val store = FileSessionStore(context.applicationContext)
+                    return HomeViewModel(store) as T
+                }
+            }
+    }
 }
 
 sealed class BottomNavItem(
@@ -108,13 +174,19 @@ sealed class BottomNavItem(
 @Composable
 fun HomeScreen(
     onStartRecording: () -> Unit,
-    onFeatureClick: (String) -> Unit,        // 哪个功能交给外层决定
-    onAvatarClick: () -> Unit,              // 点击右上角头像
+    onFeatureClick: (String) -> Unit,
+    onAvatarClick: () -> Unit,
     onBottomNavSelected: (BottomNavItem) -> Unit,
     currentRoute: String,
-    modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = viewModel()
+    modifier: Modifier = Modifier
+
 ) {
+    val context = LocalContext.current
+
+    val viewModel: HomeViewModel = viewModel(
+        factory = HomeViewModel.provideFactory(context)
+    )
+
     val uiState by viewModel.uiState.collectAsState()
     val currentProfile by CurrentUserStore.profile.collectAsState()
 
