@@ -13,6 +13,7 @@ class AuthRepository(private val supabaseClient: SupabaseClient) {
     suspend fun sendOtpToPhone(phone: String): Result<Unit> = runCatching {
         supabaseClient.auth.signInWith(OTP) {
             this.phone = phone           // 这里只负责“请求发送验证码”
+            createUser = true
         }
     }.map { }
 
