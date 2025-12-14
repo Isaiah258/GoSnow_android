@@ -19,14 +19,17 @@ class AuthRepository(private val supabaseClient: SupabaseClient) {
 
     // 校验验证码并登录
     suspend fun verifyOtpAndLogin(phone: String, code: String): Result<Unit> = runCatching {
+        // 1) 先只验证 OTP
         supabaseClient.auth.verifyPhoneOtp(
             phone = phone,
             token = code,
-            type = OtpType.Phone.SMS         // 关键：这里要传 type，见下面说明
+            type = OtpType.Phone.SMS
         )
-
+    }.mapCatching {
+        // 2) 再做用户资料同步（这里最可能触发 SingletonList）
         CurrentUserStore.refreshFromServer()
     }.map { }
+
 
     suspend fun signOut(): Result<Unit> = runCatching {
         supabaseClient.auth.signOut()

@@ -7,12 +7,15 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,19 +28,21 @@ import kotlinx.serialization.json.Json
  *
  * 注意：
  * - Auth & Storage 继续用 supabase-kt 2.4.0
- * - 对 Users 表的 CRUD 用 Ktor 直接打 REST，不再用 eq/decodeList，
- *   彻底绕开你现在遇到的版本差异问题。
+ * - 对 Users 表的 CRUD 用 Ktor 直接打 REST（PostgREST），避免你之前那种序列化/插件差异问题。
  */
 object ProfileRepository {
 
     // 复用全局 SupabaseClient
     private val supabaseClient get() = SupabaseClientProvider.supabaseClient
 
-    // 你的头像桶名（看默认 URL 是 user/xxx.jpg，所以这里用 "user"）
+    // 你的头像桶名
     private const val AVATAR_BUCKET = "user"
 
-    // REST 路径：<SUPABASE_URL>/rest/v1/Users
+    // PostgREST 路径：<SUPABASE_URL>/rest/v1/Users
     private const val USERS_TABLE_PATH = "/rest/v1/Users"
+
+    private val baseUrl: String
+        get() = BuildConfig.SUPABASE_URL.trimEnd('/')
 
     // Ktor HttpClient：只初始化一次
     private val httpClient by lazy {
@@ -45,17 +50,46 @@ object ProfileRepository {
             install(ContentNegotiation) {
                 json(
                     Json {
-                        ignoreUnknownKeys = true  // 表里多字段也没关系
+                        ignoreUnknownKeys = true
+                        isLenient = true
+                        explicitNulls = false
                     }
                 )
+            }
+
+            // ✅ 全局兜底：默认所有请求都带 JSON 头（避免 Content-Type: null）
+            defaultRequest {
+                header(HttpHeaders.Accept, ContentType.Application.Json.toString())
+                // 注意：GET 请求不一定需要 Content-Type，但加了也无害；
+                // 真正关键是 POST/PATCH 的 Content-Type 必须是 JSON。
+                header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
             }
         }
     }
 
-    private val baseUrl: String
-        get() = BuildConfig.SUPABASE_URL.trimEnd('/')
+    // ===== DTO =====
 
-    // ------------ 1. 登录后获取 / 创建当前用户的 Users 记录 ------------
+    @Serializable
+    private data class UsersRow(
+        val id: String,
+        @SerialName("user_name") val userName: String? = null,
+        @SerialName("avatar_url") val avatarUrl: String? = null
+    )
+
+    @Serializable
+    private data class UsersInsert(
+        val id: String,
+        @SerialName("user_name") val userName: String,
+        @SerialName("avatar_url") val avatarUrl: String? = null
+    )
+
+    @Serializable
+    private data class UsersPatch(
+        @SerialName("user_name") val userName: String,
+        @SerialName("avatar_url") val avatarUrl: String?
+    )
+
+    // ------------ 1) 登录后获取 / 创建当前用户资料 ------------
 
     suspend fun getOrCreateCurrentUserProfile(): CurrentUserProfile =
         withContext(Dispatchers.IO) {
@@ -69,56 +103,62 @@ object ProfileRepository {
             val userId = user.id
             val accessToken = session.accessToken
 
-            // ① 先尝试从 Users 表读取一条记录
-            val existing: List<CurrentUserProfile> =
+            // ① 先尝试从 Users 表读取
+            val existing: List<UsersRow> =
                 httpClient.get("$baseUrl$USERS_TABLE_PATH") {
                     header("apikey", BuildConfig.SUPABASE_ANON_KEY)
-                    header("Authorization", "Bearer $accessToken")
-                    // Postgrest 过滤：id=eq.<userId>
+                    header(HttpHeaders.Authorization, "Bearer $accessToken")
+
                     parameter("id", "eq.$userId")
                     parameter("select", "id,user_name,avatar_url")
                     parameter("limit", 1)
                 }.body()
 
             if (existing.isNotEmpty()) {
-                return@withContext existing.first()
+                val row = existing.first()
+                return@withContext CurrentUserProfile(
+                    id = row.id,
+                    userName = row.userName ?: "雪友",
+                    avatarUrl = row.avatarUrl
+                )
             }
 
-            // ② 没有记录：插入一条带默认昵称的
+            // ② 不存在：插入默认昵称
             val defaultName = when {
                 !user.phone.isNullOrBlank() -> "雪友${user.phone!!.takeLast(4)}"
                 !user.email.isNullOrBlank() -> user.email!!.substringBefore("@")
                 else -> "雪友"
             }
 
-            // avatarUrl 传 null，让表里自己的 default 生效
-            val newProfile = CurrentUserProfile(
+            val payload = UsersInsert(
                 id = userId,
                 userName = defaultName,
                 avatarUrl = null
             )
 
-            // 插入时，Postgrest 需要数组形式：[{...}]
-            val inserted: List<CurrentUserProfile> =
+            // PostgREST 插入：通常 body 要数组形式
+            val inserted: List<UsersRow> =
                 httpClient.post("$baseUrl$USERS_TABLE_PATH") {
                     header("apikey", BuildConfig.SUPABASE_ANON_KEY)
-                    header("Authorization", "Bearer $accessToken")
+                    header(HttpHeaders.Authorization, "Bearer $accessToken")
                     header("Prefer", "return=representation")
-                    setBody(listOf(newProfile))
+
+                    // 可选：限制返回字段
+                    parameter("select", "id,user_name,avatar_url")
+
+                    // ✅ 关键：这里是 listOf(payload)，并且 Content-Type 已由 defaultRequest 设置为 JSON
+                    setBody(listOf(payload))
                 }.body()
 
-            return@withContext inserted.firstOrNull() ?: newProfile
+            val created = inserted.firstOrNull()
+            return@withContext CurrentUserProfile(
+                id = created?.id ?: userId,
+                userName = created?.userName ?: defaultName,
+                avatarUrl = created?.avatarUrl
+            )
         }
 
-    // ------------ 2. 更新昵称 + 头像 ------------
-
-    @Serializable
-    private data class UserProfilePatch(
-        @SerialName("user_name")
-        val userName: String,
-        @SerialName("avatar_url")
-        val avatarUrl: String?
-    )
+    // ------------ 2) 更新昵称 + 头像 ------------
 
     /**
      * @param nickname         新昵称
@@ -146,29 +186,28 @@ object ProfileRepository {
         // 1️⃣ 上传新头像（如果有）
         if (avatarBytes != null) {
             val bucket = supabaseClient.storage.from(AVATAR_BUCKET)
-
             val path = "user-$userId/avatar-${System.currentTimeMillis()}.jpg"
 
-            // 上传到 Storage
             bucket.upload(path, avatarBytes)
-
-            // 桶是 public 的话，这里就是公网 URL
             finalAvatarUrl = bucket.publicUrl(path)
         }
 
-        // 2️⃣ PATCH Users 表（只修改 user_name / avatar_url 两个字段）
-        val patch = UserProfilePatch(
+        // 2️⃣ PATCH Users 表
+        val patch = UsersPatch(
             userName = nickname,
             avatarUrl = finalAvatarUrl
         )
 
         httpClient.patch("$baseUrl$USERS_TABLE_PATH") {
             header("apikey", BuildConfig.SUPABASE_ANON_KEY)
-            header("Authorization", "Bearer $accessToken")
+            header(HttpHeaders.Authorization, "Bearer $accessToken")
             header("Prefer", "return=representation")
+
             parameter("id", "eq.$userId")
+
+            // PATCH 的 body 必须是可序列化对象（这里就是 patch）
             setBody(patch)
-        }.body<List<CurrentUserProfile>>()  // 返回值你现在用不到，直接丢掉
+        }.body<List<UsersRow>>() // 返回值你可以不使用
 
         return@withContext finalAvatarUrl
     }
