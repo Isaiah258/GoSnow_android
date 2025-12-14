@@ -111,6 +111,7 @@ dependencies {
 
 
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.foundation.layout)
     // 以后需要再加：
     // implementation("io.github.jan-tennert.supabase:realtime-kt")
     // implementation("io.github.jan-tennert.supabase:functions-kt")

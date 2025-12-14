@@ -17,6 +17,7 @@ foundation = "1.10.0"
 composeMaterial3 = "1.5.6"
 playServicesAuth = "21.4.0"
 roomKtx = "2.8.4"
+foundationLayoutVersion = "1.10.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -43,6 +44,7 @@ androidx-compose-foundation = { group = "androidx.compose.foundation", name = "f
 compose-material3 = { group = "androidx.wear.compose", name = "compose-material3", version.ref = "composeMaterial3" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
+androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayoutVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
