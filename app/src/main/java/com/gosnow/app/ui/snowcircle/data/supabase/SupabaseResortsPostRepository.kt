@@ -33,7 +33,7 @@ class SupabaseResortsPostRepository(
                     // 模糊搜索：name ilike %query%
                     // supabase-kt 用 ilike("name", "%xxx%")，这里为了稳就用 eq/like 你也可以换成 ilike
                     // 如果你已经在项目里用过 ilike，就把下面一行替换成 ilike("name", "%$query%")
-                    filter { ilike("name", "%$query%") }
+                    filter { ilike("name_resort", "%$query%") }
                     limit(30)
                 }.decodeList<ResortRow>()
             matched.map { it.id }
@@ -129,7 +129,7 @@ class SupabaseResortsPostRepository(
         // 1) resortName -> resort_id
         val resort = supabase.from("Resorts_data")
             .select(Columns.Companion.raw("id, name_resort")) {
-                filter { ilike("name", "%$name%") }
+                filter { ilike("name_resort", "%$name%") }
                 limit(1)
             }.decodeList<ResortRow>()
             .firstOrNull() ?: error("没找到该雪场：$name")
