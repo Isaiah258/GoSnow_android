@@ -681,9 +681,12 @@ fun BottomNavigationBar(
 ) {
     NavigationBar {
         items.forEach { item ->
+            // 简单的字符串匹配即可
+            val selected = currentRoute == item.route
+
             NavigationBarItem(
-                selected = currentRoute == item.route,
-                onClick = { onItemSelected(item) },
+                selected = selected,
+                onClick = { onItemSelected(item) }, // 直接触发，不要加 if (!selected) 判断
                 icon = {
                     Icon(
                         imageVector = item.icon,

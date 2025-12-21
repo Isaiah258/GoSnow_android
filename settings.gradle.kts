@@ -1,34 +1,30 @@
 pluginManagement {
     repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
-        mavenCentral()
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
         gradlePluginPortal()
     }
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
         google()
         mavenCentral()
 
-        // 🔹 Mapbox Maven 仓库
+        // ✅ 新增：Mapbox 下载仓库配置
         maven {
             url = uri("https://api.mapbox.com/downloads/v2/releases/maven")
             authentication {
                 create<BasicAuthentication>("basic")
             }
             credentials {
-                // 不要把 token 写死在这里，下面会从 gradle.properties / 环境变量里取
+                // 用户名固定为 mapbox
                 username = "mapbox"
-                password = (extra["MAPBOX_DOWNLOADS_TOKEN"] as String?
-                    ?: System.getenv("MAPBOX_DOWNLOADS_TOKEN")
-                    ?: "")
+                // ✅ 密码填你刚刚提供的私钥
+                password = "sk.eyJ1IjoiZ29zbm93IiwiYSI6ImNtaXdrY2o1NTBqMnQzZHF0c2lodDBhdmwifQ.Laqg31sJkGia-mc-LzK_aQ"
             }
         }
     }

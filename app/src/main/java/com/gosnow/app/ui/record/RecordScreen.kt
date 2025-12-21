@@ -38,13 +38,18 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gosnow.app.ui.record.classifier.MotionMode
-import com.mapbox.geojson.Point
-import com.mapbox.maps.CameraOptions
+//import com.mapbox.geojson.Point
+//import com.mapbox.maps.CameraOptions
+//import com.mapbox.maps.MapView
+//import com.mapbox.maps.plugin.LocationPuck2D
+//import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
+//import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
+//import com.mapbox.maps.plugin.locationcomponent.location
+// 添加到文件头部 imports
 import com.mapbox.maps.MapView
-import com.mapbox.maps.plugin.LocationPuck2D
-import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
-import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
+import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.locationcomponent.location
+import com.mapbox.maps.plugin.viewport.viewport
 
 @Composable
 fun RecordRoute(
@@ -338,77 +343,38 @@ fun RecordScreen(
 @Composable
 private fun RecordingMapView(
     modifier: Modifier = Modifier,
-    hasLocationPermission: Boolean // ✅ coarse/fine 任一即可
+    hasLocationPermission: Boolean
 ) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-
-    // 是否已把镜头跳到过当前位置（避免一直抢镜头）
-    var didMoveToUser by remember { mutableStateOf(false) }
-
-    val mapView = remember {
-        MapView(context).apply {
-            // 默认相机：只设置一次
-            getMapboxMap().setCamera(
-                CameraOptions.Builder()
-                    .center(Point.fromLngLat(138.5, 36.7))
-                    .zoom(14.5)
-                    .build()
-            )
-
-            // 只加载样式，不在回调里 setCamera（避免覆盖后续定位跳转）
-            getMapboxMap().loadStyleUri("mapbox://styles/gosnow/cmikjh06p00ys01s68fmy9nor")
-
-            // 明确 puck（避免“有权限但不显示蓝点”的时序问题）
-            //location.locationPuck = LocationPuck2D()
+    // 如果没有权限，显示黑色占位
+    if (!hasLocationPermission) {
+        Box(
+            modifier = modifier.background(Color(0xFF1E1E1E)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("需要定位权限以显示地图", color = Color.Gray)
         }
+        return
     }
 
-    // MapView 生命周期
-    DisposableEffect(lifecycleOwner, mapView) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_START -> mapView.onStart()
-                Lifecycle.Event.ON_STOP -> mapView.onStop()
-                Lifecycle.Event.ON_DESTROY -> mapView.onDestroy()
-                else -> Unit
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    // 有权限后才监听定位点：首跳到用户位置一次
-    DisposableEffect(mapView, hasLocationPermission) {
-        if (!hasLocationPermission) {
-            didMoveToUser = false
-            onDispose { }
-        } else {
-            val mapboxMap = mapView.getMapboxMap()
-            val listener = OnIndicatorPositionChangedListener { point ->
-                if (!didMoveToUser) {
-                    didMoveToUser = true
-                    mapboxMap.setCamera(
-                        CameraOptions.Builder()
-                            .center(point)
-                            .zoom(15.5)
-                            .build()
-                    )
-                }
-            }
-            mapView.location.addOnIndicatorPositionChangedListener(listener)
-            onDispose { mapView.location.removeOnIndicatorPositionChangedListener(listener) }
-        }
-    }
-
+    // 有权限，显示真正的地图
     AndroidView(
         modifier = modifier,
-        factory = { mapView },
-        update = { mv ->
-            mv.location.updateSettings {
-                enabled = hasLocationPermission
-                pulsingEnabled = false
-                locationPuck = createDefault2DPuck(withBearing = true) // 想要纯蓝点就用 false
+        factory = { context ->
+            MapView(context).apply {
+                // ✅ 加载你提供的自定义样式
+                mapboxMap.loadStyle("mapbox://styles/gosnow/cmikjh06p00ys01s68fmy9nor") {
+                    // 启用定位插件（显示蓝点）
+                    location.updateSettings {
+                        enabled = true
+                        pulsingEnabled = true
+                    }
+
+                    // 启用视口插件（跟随用户位置）
+                    viewport.transitionTo(
+                        targetState = viewport.makeFollowPuckViewportState(),
+                        transition = viewport.makeImmediateViewportTransition()
+                    )
+                }
             }
         }
     )

@@ -37,6 +37,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -63,6 +64,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -101,6 +103,7 @@ fun SettingsScreen(
     val currentProfile by CurrentUserStore.profile.collectAsState()
     val userName = currentProfile?.userName ?: "雪友"
     val avatarUrl = currentProfile?.avatarUrl
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -190,14 +193,35 @@ fun SettingsScreen(
                     iconTint = MaterialTheme.colorScheme.onErrorContainer,
                     title = "退出登录",
                     titleColor = MaterialTheme.colorScheme.error,
-                    onClick = onLogoutClick
+                    onClick = { showLogoutDialog = true }
                 )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
         }
     }
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("退出登录") },
+            text = { Text("确定要退出当前账号吗？本地缓存的未同步数据可能会丢失。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLogoutDialog = false
+                    onLogoutClick() // <--- 这里才是真正的退出逻辑
+                }) {
+                    Text("退出", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
 }
+
 
 @Composable
 private fun UserInfoCard(
@@ -511,6 +535,8 @@ fun AboutScreen(
     onCommunityGuidelinesClick: () -> Unit,
     onPrivacyPolicyClick: () -> Unit
 ) {
+    val uriHandler = LocalUriHandler.current
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -547,7 +573,7 @@ fun AboutScreen(
                     iconBackground = MaterialTheme.colorScheme.primaryContainer,
                     iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
                     title = "社区准则",
-                    onClick = onCommunityGuidelinesClick
+                    onClick = { onCommunityGuidelinesClick() }
                 )
                 Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                 SettingsItemRow(
@@ -555,7 +581,7 @@ fun AboutScreen(
                     iconBackground = MaterialTheme.colorScheme.secondaryContainer,
                     iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                     title = "隐私政策",
-                    onClick = onPrivacyPolicyClick
+                    onClick = { onPrivacyPolicyClick() }
                 )
             }
         }
@@ -608,127 +634,140 @@ fun EditProfileScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
-        Column(
+        // ✅ 根布局使用 Box 以支持 Loading 遮罩覆盖
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
         ) {
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            // 原有的表单内容
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp, horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                ElevatedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .size(96.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.secondaryContainer),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp, horizontal = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        when {
-                            selectedImageUri != null -> {
-                                AsyncImage(
-                                    model = selectedImageUri,
-                                    contentDescription = "新头像预览",
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-
-                            !avatarUrl.isNullOrBlank() -> {
-                                AsyncImage(
-                                    model = avatarUrl,
-                                    contentDescription = "当前头像",
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-
-                            else -> {
-                                val initial = name.firstOrNull()?.uppercaseChar()?.toString() ?: "雪"
-                                Text(
-                                    text = initial,
-                                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
-                        }
-                    }
-
-                    TextButton(
-                        onClick = {
-                            imagePickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        },
-                        enabled = !isSaving
-                    ) {
-                        Text(text = "更换头像")
-                    }
-
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("昵称") },
-                        singleLine = true,
-                        enabled = !isSaving
-                    )
-
-                    Button(
-                        onClick = {
-                            val trimmed = name.trim()
-                            if (trimmed.isEmpty()) {
-                                scope.launch { snackbarHostState.showSnackbar("昵称不能为空") }
-                                return@Button
-                            }
-
-                            scope.launch {
-                                try {
-                                    isSaving = true
-
-                                    val avatarBytes = selectedImageUri?.let { uri ->
-                                        loadAndCompressImage(context, uri)
-                                    }
-
-                                    val newAvatarUrl = ProfileRepository.updateProfile(
-                                        nickname = trimmed,
-                                        avatarBytes = avatarBytes,
-                                        currentAvatarUrl = avatarUrl
+                        Box(
+                            modifier = Modifier
+                                .size(96.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.secondaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            when {
+                                selectedImageUri != null -> {
+                                    AsyncImage(
+                                        model = selectedImageUri,
+                                        contentDescription = "新头像预览",
+                                        modifier = Modifier.fillMaxSize()
                                     )
-
-                                    CurrentUserStore.updateLocalProfile(
-                                        newName = trimmed,
-                                        newAvatarUrl = newAvatarUrl
+                                }
+                                !avatarUrl.isNullOrBlank() -> {
+                                    AsyncImage(
+                                        model = avatarUrl,
+                                        contentDescription = "当前头像",
+                                        modifier = Modifier.fillMaxSize()
                                     )
-
-                                    onSaveClick(trimmed)
-                                    snackbarHostState.showSnackbar("已保存")
-                                    onBackClick()
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                    snackbarHostState.showSnackbar("保存失败：${e.message ?: "请稍后重试"}")
-                                } finally {
-                                    isSaving = false
+                                }
+                                else -> {
+                                    val initial = name.firstOrNull()?.uppercaseChar()?.toString() ?: "雪"
+                                    Text(
+                                        text = initial,
+                                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
                                 }
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp),
-                        enabled = hasChanges && !isSaving
-                    ) {
-                        Text(text = if (isSaving) "保存中…" else "保存")
+                        }
+
+                        TextButton(
+                            onClick = {
+                                imagePickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            enabled = !isSaving
+                        ) {
+                            Text(text = "更换头像")
+                        }
+
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("昵称") },
+                            singleLine = true,
+                            enabled = !isSaving
+                        )
+
+                        Button(
+                            onClick = {
+                                val trimmed = name.trim()
+                                if (trimmed.isEmpty()) {
+                                    scope.launch { snackbarHostState.showSnackbar("昵称不能为空") }
+                                    return@Button
+                                }
+
+                                scope.launch {
+                                    try {
+                                        isSaving = true
+                                        val avatarBytes = selectedImageUri?.let { uri ->
+                                            loadAndCompressImage(context, uri)
+                                        }
+                                        val newAvatarUrl = ProfileRepository.updateProfile(
+                                            nickname = trimmed,
+                                            avatarBytes = avatarBytes,
+                                            currentAvatarUrl = avatarUrl
+                                        )
+                                        CurrentUserStore.updateLocalProfile(
+                                            newName = trimmed,
+                                            newAvatarUrl = newAvatarUrl
+                                        )
+                                        onSaveClick(trimmed)
+                                        snackbarHostState.showSnackbar("已保存")
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                        snackbarHostState.showSnackbar("保存失败：${e.message ?: "请稍后重试"}")
+                                    } finally {
+                                        isSaving = false
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            enabled = hasChanges && !isSaving
+                        ) {
+                            Text(text = if (isSaving) "保存中…" else "保存")
+                        }
                     }
+                }
+            }
+
+            // ✅ Loading 遮罩 (这就是之前缺失 CircularProgressIndicator 的地方)
+            if (isSaving) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f))
+                        .clickable(enabled = false) {}, // 拦截点击
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
