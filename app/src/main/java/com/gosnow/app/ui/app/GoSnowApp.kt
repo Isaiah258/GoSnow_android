@@ -14,13 +14,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.getValue // ✅ 修复 Property delegate 报错
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp // ✅ 修复1：添加 dp 导入
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -57,6 +57,9 @@ import com.gosnow.app.ui.settings.ROUTE_FEEDBACK
 import com.gosnow.app.ui.settings.SettingsScreen
 import com.gosnow.app.ui.snowcircle.ui.SnowApp
 import com.gosnow.app.ui.stats.StatsScreen
+// ✅ 新增：导入更新相关的类 (确保你之前的 UpdateViewModel 和 UpdateDialog 文件已创建成功)
+import com.gosnow.app.ui.update.UpdateViewModel
+import com.gosnow.app.ui.update.UpdateNoticeDialog
 import com.gosnow.app.ui.welcome.WelcomeFlowScreen
 
 // 常量定义
@@ -89,6 +92,10 @@ fun GoSnowApp() {
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.provideFactory(context))
     val uiState by authViewModel.uiState.collectAsState()
 
+    // ✅ 新增：更新检查逻辑
+    val updateViewModel: UpdateViewModel = viewModel()
+    val updateNotice by updateViewModel.updateNotice.collectAsState()
+
     LaunchedEffect(uiState.isLoggedIn, hasSeenWelcome) {
         val targetRoute = when {
             !uiState.isLoggedIn -> WELCOME_AUTH_ROUTE
@@ -103,6 +110,19 @@ fun GoSnowApp() {
                 launchSingleTop = true
             }
         }
+
+        // ✅ 新增：登录成功后触发检查更新
+        if (uiState.isLoggedIn) {
+            updateViewModel.checkForUpdates()
+        }
+    }
+
+    // ✅ 新增：全局更新弹窗 (覆盖在 NavHost 之上)
+    if (updateNotice != null) {
+        UpdateNoticeDialog(
+            notice = updateNotice!!,
+            onDismiss = { updateViewModel.dismissUpdate() }
+        )
     }
 
     NavHost(
@@ -183,8 +203,6 @@ fun GoSnowMainApp(
                     currentRoute = currentRoute.orEmpty(),
                     onItemSelected = { item ->
                         navController.navigate(item.route) {
-                            // ✅ 修复2：使用 startDestinationId 替代 findStartDestination()
-                            // 这样可以避免 import 问题，同时解决 saveState 的报错
                             popUpTo(navController.graph.startDestinationId) {
                                 saveState = true
                             }
@@ -201,7 +219,7 @@ fun GoSnowMainApp(
             startDestination = BottomNavItem.Record.route,
             modifier = Modifier // 移除全局 padding
         ) {
-            // 1. 记录首页 (Home)
+            // 1. 记录首页
             composable(BottomNavItem.Record.route) {
                 Box(modifier = Modifier.padding(innerPadding)) {
                     HomeScreen(
@@ -225,7 +243,7 @@ fun GoSnowMainApp(
                 }
             }
 
-            // 3. 雪圈 (SnowApp) - 仅底部 Padding，消除顶部白边
+            // 3. 雪圈
             composable(BottomNavItem.Community.route) {
                 Box(
                     modifier = Modifier.padding(
@@ -237,7 +255,7 @@ fun GoSnowMainApp(
                 }
             }
 
-            // 4. 发现 (DiscoverScreen) - 仅底部 Padding，消除顶部白边
+            // 4. 发现
             composable(BottomNavItem.Discover.route) {
                 Box(
                     modifier = Modifier.padding(
@@ -253,7 +271,7 @@ fun GoSnowMainApp(
                 }
             }
 
-            // 5. 设置主页 (Settings) - 仅底部 Padding，消除顶部白边
+            // 5. 设置主页
             composable(PROFILE_ROUTE) {
                 Box(
                     modifier = Modifier.padding(
@@ -277,7 +295,7 @@ fun GoSnowMainApp(
                 RecordRoute(onBack = { navController.popBackStack() })
             }
 
-            // 7. 条款页 (防止 About 页面跳转崩溃)
+            // 7. 条款页
             composable(TERMS_ROUTE) {
                 Box(modifier = Modifier.padding(innerPadding)) {
                     TermsScreen(onBackClick = { navController.popBackStack() })
