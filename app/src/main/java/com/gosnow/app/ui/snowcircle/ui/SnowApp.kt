@@ -43,6 +43,8 @@ import com.gosnow.app.ui.snowcircle.model.User
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 
+// ... imports 保持不变
+
 @Composable
 fun SnowApp() {
     SnowTheme {
@@ -56,6 +58,8 @@ fun SnowApp() {
                     val vm: FeedViewModel = viewModel(factory = container.factory { FeedViewModel(container.postRepository, container.notificationsRepository, container.currentUser.id) })
                     FeedScreen(viewModel = vm, navController = navController)
                 }
+
+                // ... my_posts, notifications 路由保持不变 ...
                 composable("my_posts") {
                     val vm: MyPostsViewModel = viewModel(factory = container.factory { MyPostsViewModel(container.postRepository, container.currentUser.id) })
                     MyPostsScreen(viewModel = vm, navController = navController)
@@ -64,10 +68,25 @@ fun SnowApp() {
                     val vm: NotificationsViewModel = viewModel(factory = container.factory { NotificationsViewModel(container.notificationsRepository, container.currentUser.id) })
                     NotificationsScreen(viewModel = vm, navController = navController)
                 }
+
+                // ✅ 修改：传入 onPublished 回调，设置刷新标志
                 composable("compose_post") {
                     val vm: ComposePostViewModel = viewModel(factory = container.factory { ComposePostViewModel(container.postRepository, container.currentUser) })
-                    ComposePostScreen(navController = navController, viewModel = vm)
+                    ComposePostScreen(
+                        navController = navController,
+                        viewModel = vm,
+                        onPublished = {
+                            // 设置 flag，让上一个页面（feed）知道需要刷新
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("refresh_feed", true)
+
+                            navController.popBackStack()
+                        }
+                    )
                 }
+
+                // ... post_detail, image_viewer 路由保持不变 ...
                 composable("post_detail/{postId}") { backStackEntry ->
                     val postId = backStackEntry.arguments?.getString("postId") ?: return@composable
                     val vm: PostDetailViewModel = viewModel(factory = container.factory { PostDetailViewModel(postId, container.postRepository, container.commentRepository, container.currentUser.id) })
@@ -87,6 +106,8 @@ fun SnowApp() {
         }
     }
 }
+
+// ... SnowContainer 类保持不变
 
 
 

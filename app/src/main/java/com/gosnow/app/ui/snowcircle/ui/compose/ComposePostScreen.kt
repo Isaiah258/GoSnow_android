@@ -9,19 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -32,16 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -65,9 +44,6 @@ import com.gosnow.app.ui.snowcircle.model.User
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
-import io.github.jan.supabase.postgrest.query.filter.FilterOperator
-import io.github.jan.supabase.postgrest.query.filter.PostgrestFilterBuilder
-
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,11 +57,14 @@ private const val CONTENT_LIMIT = 500
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ComposePostScreen(navController: NavController, viewModel: ComposePostViewModel) {
+fun ComposePostScreen(
+    navController: NavController,
+    viewModel: ComposePostViewModel,
+    onPublished: () -> Unit // ✅ 新增回调参数
+) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
-    // 必须有正文 + 选择雪场，才能发布
     val canPublish = uiState.content.isNotBlank() &&
             uiState.resortName.isNotBlank() &&
             !uiState.isPosting
@@ -117,8 +96,9 @@ fun ComposePostScreen(navController: NavController, viewModel: ComposePostViewMo
                         enabled = canPublish,
                         onClick = {
                             scope.launch {
+                                // ✅ 调用发布，成功后执行回调
                                 viewModel.publish {
-                                    navController.popBackStack()
+                                    onPublished()
                                 }
                             }
                         },
@@ -147,7 +127,7 @@ fun ComposePostScreen(navController: NavController, viewModel: ComposePostViewMo
                 .padding(padding)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            // 雪场选择区域（输入框 + 下拉候选）
+            // 雪场选择
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(text = "选择雪场", style = MaterialTheme.typography.titleMedium)
@@ -160,10 +140,7 @@ fun ComposePostScreen(navController: NavController, viewModel: ComposePostViewMo
                 modifier = Modifier.fillMaxWidth(),
                 shape = CircleShape,
                 leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = null
-                    )
+                    Icon(imageVector = Icons.Filled.Search, contentDescription = null)
                 },
                 placeholder = { Text("搜索雪场以发布") },
                 singleLine = true,
@@ -173,16 +150,12 @@ fun ComposePostScreen(navController: NavController, viewModel: ComposePostViewMo
                     disabledContainerColor = Color.White,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                    focusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    disabledIndicatorColor = Color.Transparent
                 )
             )
 
-            // ✅ 候选列表：只在输入且有结果时显示
             if (uiState.showResortSuggestions && (uiState.isSearchingResort || uiState.resortSuggestions.isNotEmpty())) {
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -197,9 +170,7 @@ fun ComposePostScreen(navController: NavController, viewModel: ComposePostViewMo
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.heightIn(max = 260.dp)
-                        ) {
+                        LazyColumn(modifier = Modifier.heightIn(max = 260.dp)) {
                             items(uiState.resortSuggestions.size) { idx ->
                                 val item = uiState.resortSuggestions[idx]
                                 Row(
@@ -248,10 +219,7 @@ fun ComposePostScreen(navController: NavController, viewModel: ComposePostViewMo
                     cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Text(
                     text = "${uiState.content.length}/$CONTENT_LIMIT",
                     style = MaterialTheme.typography.bodySmall,
@@ -263,11 +231,7 @@ fun ComposePostScreen(navController: NavController, viewModel: ComposePostViewMo
 
             // 图片
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Image,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+                Icon(imageVector = Icons.Filled.Image, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(text = "图片", style = MaterialTheme.typography.titleMedium)
             }
@@ -275,15 +239,10 @@ fun ComposePostScreen(navController: NavController, viewModel: ComposePostViewMo
             ImageSelector(
                 images = uiState.selectedImages,
                 onAddClick = {
-                    picker.launch(
-                        PickVisualMediaRequest(
-                            ActivityResultContracts.PickVisualMedia.ImageOnly
-                        )
-                    )
+                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 },
                 onRemove = viewModel::removeImage
             )
-
 
             uiState.errorMessage?.let {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -320,8 +279,6 @@ private fun ImageSelector(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-
-                // 右上角删除按钮
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -332,12 +289,7 @@ private fun ImageSelector(
                         .clickable { onRemove(uri) },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "×",
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text(text = "×", color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -347,22 +299,14 @@ private fun ImageSelector(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .border(
-                            1.dp,
-                            MaterialTheme.colorScheme.outline,
-                            RoundedCornerShape(10.dp)
-                        )
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
                         .clickable(onClick = onAddClick)
                         .fillMaxWidth()
                         .aspectRatio(1f),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Outlined.Image,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                        Icon(imageVector = Icons.Outlined.Image, contentDescription = null)
                         Text("添加图片", style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -371,7 +315,8 @@ private fun ImageSelector(
     }
 }
 
-
+// ViewModel 和 data class 保持不变 (ComposePostViewModel, ComposePostUiState, ResortRow)
+// ... (为了节省篇幅，请保留你原文件中这里的 ViewModel 代码)
 @Serializable
 data class ResortRow(
     val id: Long? = null,
@@ -381,12 +326,9 @@ data class ResortRow(
 
 data class ComposePostUiState(
     val resortName: String = "",
-
-    // ✅ 新增：候选列表状态（不影响发布逻辑）
     val resortSuggestions: List<ResortRow> = emptyList(),
     val showResortSuggestions: Boolean = false,
     val isSearchingResort: Boolean = false,
-
     val content: String = "",
     val selectedImages: List<Uri> = emptyList(),
     val isPosting: Boolean = false,
@@ -408,21 +350,17 @@ class ComposePostViewModel(
         _uiState.update {
             it.copy(
                 resortName = trimmed,
-                // 输入就显示候选
                 showResortSuggestions = trimmed.isNotBlank(),
-                // 先清空上一轮结果，避免“无反应”的错觉
                 resortSuggestions = if (trimmed.isBlank()) emptyList() else it.resortSuggestions
             )
         }
 
-        // 空就直接收起
         if (trimmed.isBlank()) {
             _uiState.update { it.copy(resortSuggestions = emptyList(), isSearchingResort = false, showResortSuggestions = false) }
             resortSearchJob?.cancel()
             return
         }
 
-        // ✅ debounce + 后端搜索
         resortSearchJob?.cancel()
         resortSearchJob = viewModelScope.launch {
             delay(250)
@@ -455,24 +393,16 @@ class ComposePostViewModel(
 
         runCatching {
             val supabase = SupabaseClientProvider.supabaseClient
-
-            // ✅ 关键：字段是 name_resort，不是 name
             val rows: List<ResortRow> = supabase
                 .from("Resorts_data")
-                .select(
-                    columns = Columns.list("id", "name_resort")
-                ) {
-                    filter {
-                        ilike("name_resort", "%$keyword%")
-                    }
+                .select(columns = Columns.list("id", "name_resort")) {
+                    filter { ilike("name_resort", "%$keyword%") }
                     order("name_resort", Order.ASCENDING)
                     limit(20)
                 }
                 .decodeList()
-
             rows
         }.onSuccess { list ->
-            // 防止异步回来的结果覆盖了用户最新输入
             if (_uiState.value.resortName != keyword && !_uiState.value.resortName.contains(keyword, ignoreCase = true)) {
                 _uiState.update { it.copy(isSearchingResort = false) }
                 return
@@ -487,12 +417,7 @@ class ComposePostViewModel(
             }
         }.onFailure { e ->
             _uiState.update {
-                it.copy(
-                    isSearchingResort = false,
-                    resortSuggestions = emptyList(),
-                    // 这里别用 errorMessage（那是发布失败提示），避免把“搜雪场失败”当成发布失败
-                    showResortSuggestions = true
-                )
+                it.copy(isSearchingResort = false, resortSuggestions = emptyList(), showResortSuggestions = true)
             }
         }
     }
@@ -518,7 +443,7 @@ class ComposePostViewModel(
             runCatching {
                 postRepository.createPost(
                     content = state.content,
-                    resortName = state.resortName, // 仍然只传 name
+                    resortName = state.resortName,
                     images = state.selectedImages.map { it.toString() },
                     currentUser = currentUser
                 )
@@ -527,10 +452,7 @@ class ComposePostViewModel(
                 onSuccess()
             }.onFailure { e ->
                 _uiState.update {
-                    it.copy(
-                        isPosting = false,
-                        errorMessage = e.message ?: "发布失败"
-                    )
+                    it.copy(isPosting = false, errorMessage = e.message ?: "发布失败")
                 }
             }
         }

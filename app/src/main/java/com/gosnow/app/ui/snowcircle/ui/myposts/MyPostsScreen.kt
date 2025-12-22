@@ -131,6 +131,9 @@ fun MyPostsScreen(
                                     onLikeClick = {},
                                     onCommentClick = { navController.navigate("post_detail/${post.id}") },
                                     onImageClick = { index -> navController.navigate("image_viewer/${post.id}/$index") },
+                                    // ✅ 修复：补充缺少的参数
+                                    onDeleteClick = { viewModel.deletePost(post.id) },
+                                    onReportClick = { /* 自己的帖子不举报 */ },
                                     modifier = Modifier
                                 )
                             }
